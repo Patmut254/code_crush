@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Code Crush",
+    "slug": "code-crush",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "codecrush",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#0F172A"
+    },
+    "android": {
+      "package": "com.codecrush.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0F172A"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-av",
+        {
+          "microphonePermission": false
+        }
+      ]
+    ],
+    "extra": {
+      "revenueCatAndroidKey": "YOUR_REVENUECAT_ANDROID_PUBLIC_SDK_KEY"
+    }
+  }
+}
