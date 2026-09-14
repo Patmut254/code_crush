@@ -13,7 +13,10 @@
       "package": "com.codecrush.app",
       "adaptiveIcon": {
         "backgroundColor": "#0F172A"
-      }
+      },
+      "permissions": [
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -25,7 +28,19 @@
       ]
     ],
     "extra": {
-      "revenueCatAndroidKey": "YOUR_REVENUECAT_ANDROID_PUBLIC_SDK_KEY"
+      "revenueCatAndroidKey": "YOUR_REVENUECAT_ANDROID_PUBLIC_SDK_KEY",
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "afeff52b-37cf-43eb-adca-50a0ec4189cf"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.codecrush.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     }
   }
 }
