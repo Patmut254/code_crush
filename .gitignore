@@ -1,2 +1,35 @@
-node_modules
-.expo/
+# Secrets and environment files
+.env
+.env.*
+*.pem
+*.key
+serviceAccount*.json
+*-firebase-adminsdk-*.json
+
+# Firebase local files
+.firebase/
+firebase-debug.log*
+firestore-debug.log
+ui-debug.log
+.runtimeconfig.json
+
+# Dependencies and build output
+node_modules/
+dist/
+build/
+.cache/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Deploy tool folders
+.netlify/
+.vercel/
