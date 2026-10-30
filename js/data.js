@@ -1,13 +1,19 @@
+// Each tier and track has an SVG icon (names come from P in app.js) and a colour.
 const TIERS=[
-{n:"Beginner",sub:"Learn the basics",img:"catGym"},
-{n:"Mid Dev",sub:"Build real things",img:"catGame"},
-{n:"Pro Dev",sub:"Think in systems",img:"chibi"},
-{n:"Specialist",sub:"Master the craft",img:"penguin"}];
+{n:"Beginner",sub:"Learn the basics",icon:"seedling",col:"#2FAE72"},
+{n:"Mid Dev",sub:"Build real things",icon:"rocket",col:"#2E7CF6"},
+{n:"Pro Dev",sub:"Think in systems",icon:"bolt",col:"#F08C00"},
+{n:"Specialist",sub:"Master the craft",icon:"crown",col:"#E5383B"}];
+// Order here is the order on Home and in the Levels tab.
 const TRK={
-js:{n:"JavaScript",sub:"Your core language",img:"lionDance",c:"var(--pu)"},
-web:{n:"HTML and CSS",sub:"Shape what people see",img:"parrot",c:"var(--ye)"},
-logic:{n:"Logic",sub:"Think like a programmer",img:"eagle",c:"var(--gr)"},
-debug:{n:"Debugging",sub:"Find it, fix it, ship it",img:"tiger",c:"var(--pk)"}};
+js:{n:"JavaScript",sub:"Your core language",icon:"braces",fg:"#B58900",bg:"#FFF3C4"},
+python:{n:"Python",sub:"Clean and readable",icon:"terminal",fg:"#2E8B57",bg:"#D9F3E3"},
+php:{n:"PHP",sub:"Server-side web",icon:"server",fg:"#6A6FB3",bg:"#E6E4F7"},
+sql:{n:"SQL",sub:"Talk to databases",icon:"database",fg:"#0E8FA8",bg:"#D5F1F7"},
+web:{n:"HTML",sub:"Build the page",icon:"code",fg:"#E4572E",bg:"#FFE3D8"},
+css:{n:"CSS",sub:"Make it beautiful",icon:"palette",fg:"#2965F1",bg:"#DDE8FF"},
+logic:{n:"Logic",sub:"Think like a programmer",icon:"puzzle",fg:"#7B4FD6",bg:"#ECE3FF"},
+debug:{n:"Debugging",sub:"Find it, fix it, ship it",icon:"bug",fg:"#D6455B",bg:"#FFDCE1"}};
 // question = [text, code, options, correctIndex, explanation]
 const HAND_LV=[
 [0,"js","Variables and values",[

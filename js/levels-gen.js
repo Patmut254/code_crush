@@ -1,16 +1,18 @@
 /*
   LEVELS-GEN.JS
   -------------
-  Builds 200 levels for every tier (800 in all). The first 4 levels of each
-  tier are the hand-written ones in data.js; the rest come from question
-  generators below. Every level is seeded by its id, so a level always has
-  the same questions, and numbers, arrays and words change from level to level.
+  Builds 400 levels for every tier (1,600 in all): 8 tracks x 50 levels.
+  The first JavaScript, HTML, Logic and Debugging level of each tier are the
+  hand-written ones in data.js; the rest come from question generators below.
+  Every level is seeded by its id, so a level always has the same questions,
+  and numbers, arrays and words change from level to level.
 
   A question is [text, code, options, correctIndex, explanation], exactly like
   data.js. The correct option is listed first; app.js shuffles options.
 */
-const PER_TIER = 200;
+const PER_TIER = 200; // per block of 4 tracks; each tier has 2 blocks = 400 levels
 const TRACK_ORDER = ["js", "web", "logic", "debug"];
+const NEW_TRACKS = ["python", "css", "sql", "php"];
 
 /* ---------- seeded helpers ---------- */
 function seeded(seed) {
@@ -239,7 +241,7 @@ const JS = [
   } },
 ];
 
-/* ---------- HTML and CSS ---------- */
+/* ---------- HTML ---------- */
 const TAGS = [
   ["<a>", "a link to another page"], ["<img>", "an image"], ["<ul>", "a bulleted list"], ["<ol>", "a numbered list"],
   ["<li>", "one item in a list"], ["<p>", "a paragraph"], ["<h1>", "the main heading"], ["<button>", "a clickable button"],
@@ -279,8 +281,90 @@ const WEB_PRO = [
   ["HTTPS", "What encrypts traffic between the browser and the server?"],
   ["CORS", "What browser rule controls which other sites can call your API?"],
 ];
+const ATTRS = [
+  ["href", "where a link goes"], ["src", "the file an image or script loads"], ["alt", "text that describes an image"],
+  ["placeholder", "grey hint text inside an empty input"], ["required", "a form field that must be filled in"],
+  ["target", "where a link opens, like a new tab"], ["lang", "the language of the page"], ["for", "which input a label belongs to"],
+  ["type", "what kind of input it is, like email or password"], ["disabled", "a control that cannot be used"],
+  ["id", "a unique name for one element"], ["class", "a reusable name shared by several elements"],
+];
+const INPUTS = [
+  ["email", "an email address"], ["password", "a hidden password"], ["checkbox", "a tick box you can switch on or off"],
+  ["radio", "one choice out of a group"], ["date", "a calendar date"], ["number", "a number with up and down arrows"],
+  ["range", "a slider"], ["file", "a file upload"], ["color", "a colour picker"], ["search", "a search box"],
+];
+const HEAD_TAGS = [["<title>", true], ["<meta>", true], ["<link>", true], ["<h1>", false], ["<button>", false], ["<img>", false], ["<footer>", false]];
+
+// HTML track (id "web" kept so saved progress still matches)
 const WEB = [
   () => fromPool(TAGS, (r) => `Which tag creates ${r[1]}?`, (r) => `${r[0]} is used for ${r[1]}.`),
+  () => {
+    const [tag, does] = pick(TAGS);
+    return Q(`What does the ${tag} tag create?`, "", does, shuf(TAGS.filter((r) => r[0] !== tag)).slice(0, 3).map((r) => r[1]), `${tag} is used for ${does}.`);
+  },
+  () => fromPool(ATTRS, (r) => `Which attribute sets ${r[1]}?`, (r) => `The ${r[0]} attribute sets ${r[1]}.`),
+  () => fromPool(INPUTS, (r) => `Which <input type> gives you ${r[1]}?`, (r) => `type="${r[0]}" gives ${r[1]}.`),
+  () => {
+    const n = ri(2, 6), tag = pick(["ul", "ol"]);
+    const items = Array.from({ length: n }, (_, i) => `  <li>${pick(VOCAB[0])[0].toLowerCase()}</li>`).join("\n");
+    return Q("How many bullet points or numbers does this show?", `<${tag}>\n${items}\n</${tag}>`, n, [n - 1, n + 1, 1],
+      `Each <li> is one item, and there are ${n} of them.`);
+  },
+  () => {
+    const yes = HEAD_TAGS.filter((t) => t[1]), no = HEAD_TAGS.filter((t) => !t[1]);
+    const right = pick(yes)[0];
+    return Q("Which tag belongs inside <head>?", "", right, shuf(no).slice(0, 3).map((t) => t[0]),
+      "<head> holds information about the page, like its title, meta tags and stylesheets. Visible content goes in <body>.");
+  },
+  () => {
+    const forms = [
+      ["Which link opens in a new tab?", '<a href="/" target="_blank">', ['<a href="/" new>', '<a href="/" tab="new">', '<a href="/" open="tab">'], 'target="_blank" opens the link in a new tab.'],
+      ["Which image tag is written correctly?", '<img src="cat.png" alt="A sleeping cat">', ['<img>cat.png</img>', '<image src="cat.png">', '<img href="cat.png">'], "img is self-closing and uses src for the file and alt for a description."],
+      ["Which label is tied to its input correctly?", '<label for="email">Email</label>', ['<label name="email">Email</label>', '<label id="email">Email</label>', '<label to="email">Email</label>'], "for must match the id of the input."],
+      ["Which line starts every HTML5 page?", "<!DOCTYPE html>", ["<html5>", "<!HTML>", "<?html?>"], "The doctype tells the browser to use modern standards mode."],
+    ];
+    const [t, a, w, why] = pick(forms);
+    return Q(t, "", a, w, why);
+  },
+  { min: 1, f: () => fromPool(HTTP.map(([c, m]) => [c, m]), (r) => `Which HTTP status code means "${r[1]}"?`, (r) => `${r[0]} means ${r[1]}.`) },
+  { min: 1, f: () => {
+    const forms = [
+      ["Which tag is best for the main menu links?", "<nav>", ["<div>", "<menu-bar>", "<span>"], "<nav> tells browsers and screen readers that this is navigation."],
+      ["Which tag is best for a blog post that makes sense on its own?", "<article>", ["<div>", "<span>", "<aside>"], "<article> marks self-contained content."],
+      ["Which tag is best for a side note or related links?", "<aside>", ["<footer>", "<main>", "<nav>"], "<aside> holds content related to, but separate from, the main content."],
+      ["Which form method sends data in the URL?", "GET", ["POST", "PUT", "SEND"], "GET adds the data to the URL as a query string; POST sends it in the request body."],
+    ];
+    const [t, a, w, why] = pick(forms);
+    return Q(t, "", a, w, why);
+  } },
+  { min: 2, f: () => fromPool(WEB_PRO, (r) => r[1], (r) => `The answer is ${r[0].toLowerCase()}.`) },
+];
+
+/* ---------- CSS ---------- */
+const PSEUDO = [
+  [":hover", "when the mouse is over an element"], [":focus", "when an input is selected for typing"],
+  [":first-child", "the first item inside its parent"], [":last-child", "the last item inside its parent"],
+  [":disabled", "a form control that cannot be used"], [":checked", "a ticked checkbox or radio button"],
+  ["::before", "content added before an element's text"], ["::placeholder", "the hint text inside an empty input"],
+];
+const UNITS = [
+  ["px", "a fixed number of screen pixels"], ["rem", "a multiple of the root (html) font size"], ["em", "a multiple of the parent's font size"],
+  ["%", "a share of the parent's size"], ["vw", "a share of the browser window's width"], ["vh", "a share of the browser window's height"],
+  ["fr", "a share of the free space in a grid"],
+];
+const DISPLAY = [
+  ["block", "starts on a new line and takes the full width"], ["inline", "sits in a line of text and ignores width"],
+  ["flex", "lays children out in a row or column"], ["grid", "lays children out in rows and columns"], ["none", "hides the element completely"],
+  ["inline-block", "sits in a line of text but accepts width and height"],
+];
+function nthSelected(a, b, count) {
+  const hit = [];
+  for (let i = 1; i <= count; i++) {
+    if (a === 0 ? i === b : (i - b) % a === 0 && (i - b) / a >= 0) hit.push(i);
+  }
+  return hit;
+}
+const CSSG = [
   () => fromPool(CSSP, (r) => `Which CSS property controls ${r[1]}?`, (r) => `${r[0]} sets ${r[1]}.`),
   () => {
     const [prop, does] = pick(CSSP);
@@ -300,21 +384,49 @@ const WEB = [
     const w = ri(10, 30) * 10, p = ri(1, 4) * 5, b = ri(1, 5);
     const sizing = d === 0 ? "content-box" : pick(["content-box", "border-box"]);
     const total = sizing === "content-box" ? w + 2 * p + 2 * b : w;
-    return Q(`How wide does this box appear on screen?`,
+    return Q("How wide does this box appear on screen?",
       `.box {\n  box-sizing: ${sizing};\n  width: ${w}px;\n  padding: ${p}px;\n  border: ${b}px solid;\n}`,
       `${total}px`, [`${w}px`, `${w + p + b}px`, `${w + 2 * p}px`, `${w + 2 * p + 2 * b}px`],
       sizing === "content-box"
         ? `With content-box, padding and border are added on both sides: ${w} + ${2 * p} + ${2 * b} = ${total}.`
-        : `With border-box, the width you set already includes padding and border.`);
+        : "With border-box, the width you set already includes padding and border.");
   },
-  () => fromPool(COLORS, (r) => `Which colour is ${r[0]}?`, (r) => `Hex colours are #RRGGBB. ${r[0]} is ${r[1].toLowerCase()}.`),
-  { min: 1, f: () => fromPool(HTTP.map(([c, m]) => [c, m]), (r) => `Which HTTP status code means "${r[1]}"?`, (r) => `${r[0]} means ${r[1]}.`) },
+  () => fromPool(COLORS.map(([hex, name]) => [name, hex]), (r) => `Which colour is ${r[1]}?`, (r) => `Hex colours are #RRGGBB. ${r[1]} is ${r[0].toLowerCase()}.`),
+  () => {
+    const root = pick([10, 16, 20]), r = pick([0.5, 1.5, 2, 2.5, 3]);
+    return Q("How big is the title text in pixels?", `html { font-size: ${root}px; }\n.title { font-size: ${r}rem; }`, `${root * r}px`,
+      [`${r}px`, `${root + r}px`, `${root * r * 2}px`, `${root}px`], `1rem equals the html font size, so ${r}rem = ${r} × ${root} = ${root * r}px.`);
+  },
+  () => {
+    const parent = pick([12, 14, 16, 18, 20]), k = pick([0.5, 1.5, 2, 3]);
+    return Q("How much padding does .tag get?", `.card { font-size: ${parent}px; }\n.card .tag { padding: ${k}em; }`, `${parent * k}px`,
+      [`${16 * k}px`, `${k}px`, `${parent + k}px`], `em is relative to the element's own font size, inherited here as ${parent}px: ${k} × ${parent} = ${parent * k}px.`);
+  },
+  () => {
+    const W = ri(4, 12) * 50, p = pick([10, 20, 25, 50, 75]);
+    return Q("How wide is .child?", `.parent { width: ${W}px; }\n.child  { width: ${p}%; }`, `${(W * p) / 100}px`,
+      [`${p}px`, `${W - p}px`, `${(W * p) / 50}px`], `${p}% of ${W}px is ${(W * p) / 100}px.`);
+  },
+  () => fromPool(PSEUDO, (r) => `Which selector matches ${r[1]}?`, (r) => `${r[0]} matches ${r[1]}.`),
+  () => fromPool(UNITS, (r) => `Which CSS unit is ${r[1]}?`, (r) => `${r[0]} is ${r[1]}.`),
+  () => fromPool(DISPLAY, (r) => `Which display value ${r[1]}?`, (r) => `display: ${r[0]} ${r[1]}.`),
+  { min: 1, f: () => {
+    const count = 8;
+    const sel = pick([["odd", 2, 1], ["even", 2, 0], ["3", 0, 3], ["3n", 3, 0], ["2n+1", 2, 1], ["3n+1", 3, 1], ["n+5", 1, 5]]);
+    const fix = (a, b) => (b === 0 && a > 0 ? a : b); // "even" and "3n" start at a, not 0
+    const hit = nthSelected(sel[1], fix(sel[1], sel[2]), count);
+    const other = [nthSelected(2, 1, count), nthSelected(2, 2, count), nthSelected(3, 3, count), nthSelected(0, 3, count), nthSelected(4, 1, count)]
+      .map((x) => x.join(", "));
+    return Q(`A list has 8 items. Which ones does li:nth-child(${sel[0]}) select?`, "", hit.join(", "), other,
+      "nth-child counts from 1. an+b picks every a-th item starting at item b.");
+  } },
   { min: 1, f: () => {
     const forms = [
       ["With display:flex, which property centres items along the main axis?", "justify-content", ["align-items", "text-align", "float"], "justify-content works on the main axis; align-items on the cross axis."],
       ["With display:flex, which property stacks items vertically?", "flex-direction: column", ["flex-wrap: wrap", "align-items: column", "display: vertical"], "flex-direction sets the main axis."],
       ["Which rule makes a 3-column grid of equal widths?", "grid-template-columns: repeat(3, 1fr)", ["columns: 3", "grid: 3 equal", "flex: 3"], "1fr is one fraction of the free space; repeat makes three."],
       ["Which value keeps a header stuck to the top while you scroll?", "position: sticky", ["position: static", "display: fixed-top", "float: top"], "sticky acts like relative until it reaches its top offset."],
+      ["Which rule only applies on screens 600px wide or less?", "@media (max-width: 600px) { … }", ["@screen 600 { … }", "@media (min-width: 600px) { … }", "@phone { … }"], "max-width means up to that width, so it targets small screens."],
     ];
     const [t, a, w, why] = pick(forms);
     return Q(t, "", a, w, why);
@@ -325,7 +437,16 @@ const WEB = [
     return Q("Which selector has the highest specificity?", "", best[0], sels.filter((s) => s !== best).map((s) => s[0]),
       "IDs beat classes, classes beat element names, and * counts for nothing.");
   } },
-  { min: 2, f: () => fromPool(WEB_PRO, (r) => r[1], (r) => `The answer is ${r[0].toLowerCase()}.`) },
+  { min: 2, f: () => {
+    const forms = [
+      ["Which properties are cheapest to animate?", "transform and opacity", ["width and height", "top and left", "margin and padding"], "They can be handled by the GPU without recalculating layout."],
+      ["What does a CSS custom property look like?", "--brand: #C8141F;", ["$brand: #C8141F;", "@brand = #C8141F;", "var brand = #C8141F;"], "Custom properties start with two dashes and are read with var(--brand)."],
+      ["Which rule respects users who turn off animations?", "@media (prefers-reduced-motion: reduce)", ["@media (motion: off)", "animation: none !always", "@supports (no-motion)"], "This media query matches when the user asked the system for less motion."],
+      ["Which value makes a grid wrap into as many columns as fit?", "repeat(auto-fit, minmax(200px, 1fr))", ["repeat(3, 200px)", "auto 200px", "wrap 1fr"], "auto-fit with minmax makes columns that wrap without media queries."],
+    ];
+    const [t, a, w, why] = pick(forms);
+    return Q(t, "", a, w, why);
+  } },
 ];
 
 /* ---------- Logic ---------- */
@@ -462,6 +583,358 @@ const DEBUG = [
   } },
 ];
 
+/* ---------- Python ---------- */
+const pyList = (a) => "[" + a.map((x) => (typeof x === "string" ? `'${x}'` : x)).join(", ") + "]";
+const PY_TYPES = [["7", "int"], ['"7"', "str"], ["7.0", "float"], ["True", "bool"], ["[7]", "list"], ["{}", "dict"], ["None", "NoneType"], ["(7,)", "tuple"]];
+const PY_CONCEPTS = [
+  ["Indentation", "What does Python use to show which lines belong inside a loop or if?"],
+  ["def", "Which keyword starts a function in Python?"],
+  ["None", "Which value means 'nothing' in Python?"],
+  ["try / except", "How do you catch an error in Python?"],
+  ["A tuple", "Which Python type is like a list but cannot be changed?"],
+  ["pip", "Which tool installs Python packages?"],
+  ["__init__", "Which method runs when you create an object from a class?"],
+  ["import", "Which keyword loads code from another module?"],
+];
+const PY = [
+  (d) => {
+    const a = ri(2, 9 + d * 5), b = ri(2, 9), m = ri(2, 4);
+    return Q(PRINT, `x = ${a}\nx += ${b}\nprint(x * ${m})`, (a + b) * m, [a + b * m, a + b, a * b * m], `x becomes ${a + b}, then ${a + b} × ${m} = ${(a + b) * m}.`);
+  },
+  (d) => {
+    const a = ri(10, 50 + d * 20), b = ri(2, 9);
+    return Q(PRINT, `print(${a} // ${b}, ${a} % ${b})`, `${Math.floor(a / b)} ${a % b}`,
+      [`${(a / b).toFixed(1)} ${a % b}`, `${a % b} ${Math.floor(a / b)}`, `${Math.floor(a / b)} 0`],
+      `// is whole-number division and % is the remainder: ${a} = ${b} × ${Math.floor(a / b)} + ${a % b}.`);
+  },
+  () => {
+    const a = ri(2, 5), b = ri(2, 4);
+    return Q(PRINT, `print(${a} ** ${b})`, a ** b, [a * b, a + b, b ** a === a ** b ? a ** b + 1 : b ** a], `** means "to the power of": ${a} to the power ${b} is ${a ** b}.`);
+  },
+  () => {
+    const w = pick(VOCAB[0].filter((r) => r[0].length >= 4))[0].toLowerCase();
+    const forms = [
+      [`word = "${w}"\nprint(word[1:3])`, w.slice(1, 3), [w.slice(0, 3), w.slice(1, 4), w.slice(0, 2)], "Slices start at the first number and stop before the second."],
+      [`word = "${w}"\nprint(word[-1])`, w[w.length - 1], [w[0], w[w.length - 2], "Error"], "-1 is the last character."],
+      [`word = "${w}"\nprint(word[::-1])`, [...w].reverse().join(""), [w, w.toUpperCase(), w.slice(1)], "[::-1] steps backwards through the whole string."],
+      [`word = "${w}"\nprint(len(word))`, w.length, [w.length - 1, w.length + 1, w], `len counts the ${w.length} characters.`],
+      [`word = "${w}"\nprint(word.upper())`, w.toUpperCase(), [w, w[0].toUpperCase() + w.slice(1), "Error"], "upper() returns a capitalised copy."],
+      [`word = "${w}"\nprint(word.capitalize())`, w[0].toUpperCase() + w.slice(1), [w.toUpperCase(), w, "Error"], "capitalize() makes only the first letter a capital."],
+    ];
+    const [code, ans, wrong, why] = pick(forms);
+    return Q(PRINT, code, ans, wrong, why);
+  },
+  () => {
+    const n = ri(3, 5), a = nums(n, 1, 20), v = ri(1, 30);
+    return Q(PRINT, `nums = ${pyList(a)}\nnums.append(${v})\nprint(len(nums))`, n + 1, [n, n + 2, v], `append adds one item, so there are now ${n + 1}.`);
+  },
+  () => {
+    const a = nums(ri(4, 5), 1, 30);
+    const forms = [
+      [`nums = ${pyList(a)}\nprint(nums[-1])`, a[a.length - 1], [a[0], a[a.length - 2], "Error"], "Negative indexes count from the end; -1 is the last item."],
+      [`nums = ${pyList(a)}\nprint(sum(nums))`, a.reduce((x, y) => x + y, 0), [a.length, Math.max(...a), a.reduce((x, y) => x + y, 0) - a[0]], "sum adds every item."],
+      [`nums = ${pyList(a)}\nprint(sorted(nums))`, pyList([...a].sort((x, y) => x - y)), [pyList(a), pyList([...a].sort((x, y) => y - x)), pyList([...a].reverse())], "sorted returns a new list from smallest to largest."],
+      [`nums = ${pyList(a)}\nprint(max(nums) - min(nums))`, Math.max(...a) - Math.min(...a), [Math.max(...a), Math.min(...a), Math.max(...a) + Math.min(...a)], "max and min find the biggest and smallest items."],
+    ];
+    const [code, ans, wrong, why] = pick(forms);
+    return Q(PRINT, code, ans, wrong, why);
+  },
+  () => {
+    const a = nums(ri(3, 5), 1, 9), m = ri(2, 4);
+    const forms = [
+      [`nums = ${pyList(a)}\nprint([x * ${m} for x in nums])`, pyList(a.map((x) => x * m)), [pyList(a), pyList(a.map((x) => x + m)), String(a.reduce((s, x) => s + x * m, 0))], "A list comprehension builds a new list from every item."],
+      [`nums = ${pyList(a)}\nprint([x for x in nums if x % 2 == 0])`, pyList(a.filter((x) => x % 2 === 0)), [pyList(a.filter((x) => x % 2)), pyList(a), String(a.filter((x) => x % 2 === 0).length)], "The if part keeps only the even numbers."],
+    ];
+    const [code, ans, wrong, why] = pick(forms);
+    return Q(PRINT, code, ans, wrong, why);
+  },
+  (d) => {
+    const n = ri(3, 6 + d * 2);
+    const total = (n * (n - 1)) / 2;
+    return Q(PRINT, `total = 0\nfor i in range(${n}):\n    total += i\nprint(total)`, total, [total + n, (n * (n + 1)) / 2 === total + n ? total + 1 : (n * (n + 1)) / 2, n],
+      `range(${n}) gives 0 up to ${n - 1}. Adding those gives ${total}.`);
+  },
+  () => {
+    const a = ri(0, 4), b = a + ri(2, 5);
+    const r = Array.from({ length: b - a }, (_, i) => a + i);
+    return Q(PRINT, `print(list(range(${a}, ${b})))`, pyList(r), [pyList([...r, b]), pyList(r.slice(1)), pyList([...r.slice(1), b])], `range stops before ${b}.`);
+  },
+  () => {
+    const name = pick(["Ava", "Kai", "Leo", "Mia", "Zoe"]), n = ri(2, 9);
+    return Q(PRINT, `name = "${name}"\nprint(f"{name} has {${n} * 2} points")`, `${name} has ${n * 2} points`,
+      [`{name} has {${n} * 2} points`, `${name} has ${n} * 2 points`, `name has ${n * 2} points`], "An f-string runs the code inside { } and puts the result in the text.");
+  },
+  () => {
+    const people = shuf(["ava", "kai", "leo", "mia", "zoe"]).slice(0, 3), ages = nums(3, 8, 15);
+    const dict = "{" + people.map((p, i) => `"${p}": ${ages[i]}`).join(", ") + "}";
+    const forms = [
+      [`ages = ${dict}\nprint(ages["${people[1]}"])`, ages[1], [ages[0], ages[2], `"${people[1]}"`], "A dictionary looks values up by key."],
+      [`ages = ${dict}\nprint(ages.get("sam", 0))`, 0, ["None", "Error", ages[0]], "get returns the default (0 here) when the key is missing."],
+      [`ages = ${dict}\nprint(len(ages))`, 3, [6, 2, ages.reduce((x, y) => x + y, 0)], "len counts the keys."],
+    ];
+    const [code, ans, wrong, why] = pick(forms);
+    return Q(PRINT, code, ans, wrong, why);
+  },
+  () => {
+    const [v, t] = pick(PY_TYPES);
+    return Q(PRINT, `print(type(${v}).__name__)`, t, shuf(PY_TYPES.filter((x) => x[1] !== t)).slice(0, 3).map((x) => x[1]), `${v} is a ${t}.`);
+  },
+  () => {
+    const a = ri(2, 9), b = ri(1, 9), k = ri(2, 4), s = pick(["ab", "hi", "go", "xo"]);
+    const forms = [
+      [`print("${s}" * ${k})`, s.repeat(k), [`${s}${k}`, "Error", s], "Multiplying a string repeats it."],
+      [`print("${a}" + "${b}")`, `${a}${b}`, [a + b, "Error", `${a} ${b}`], "+ joins two strings."],
+      [`print(int("${a}") + ${b})`, a + b, [`${a}${b}`, "Error", a], "int() turns the text into a number first."],
+      [`print("${a}" + ${b})`, "TypeError", [`${a}${b}`, a + b, "None"], "Python will not mix str and int with +. Convert one of them first."],
+    ];
+    const [code, ans, wrong, why] = pick(forms);
+    return Q(code.includes(`"${a}" + ${b})`) ? "What happens when this runs?" : PRINT, code, ans, wrong, why);
+  },
+  () => {
+    const a = ri(1, 20), b = ri(1, 20), c = ri(1, 20);
+    const op = pick(["and", "or"]);
+    const v = op === "and" ? a > b && b < c : a > b || b < c;
+    return Q(PRINT, `print(${a} > ${b} ${op} ${b} < ${c})`, v ? "True" : "False", [v ? "False" : "True", "true", "None"], "Python writes True and False with capital letters.");
+  },
+  () => fromPool(PY_CONCEPTS, (r) => r[1], (r) => `${r[0]}.`),
+  { min: 1, f: () => {
+    const a = ri(1, 9), b = ri(10, 20);
+    return Q(PRINT, `a, b = ${a}, ${b}\na, b = b, a\nprint(a, b)`, `${b} ${a}`, [`${a} ${b}`, `${b} ${b}`, `${a} ${a}`], "Tuple unpacking swaps both values in one step.");
+  } },
+  { min: 1, f: () => {
+    const words = shuf(["red", "green", "blue", "gold", "mint"]).slice(0, ri(2, 4)), sep = pick(["-", ", ", " "]);
+    return Q(PRINT, `words = ${pyList(words)}\nprint("${sep}".join(words))`, words.join(sep), [pyList(words), words.join(""), words.reverse().join(sep)],
+      "join puts the separator between every item.");
+  } },
+  { min: 1, f: () => {
+    const t = shuf(["a", "b", "c", "d"]).slice(0, ri(2, 4));
+    return Q(PRINT, `print("${t.join(",")}".split(","))`, pyList(t), [t.join(""), `['${t.join(",")}']`, String(t.length)], "split breaks the text at every comma and returns a list.");
+  } },
+  { min: 1, f: () => {
+    const a = ri(10, 30), b = pick([3, 4, 8]);
+    const div = a / b;
+    return Q(PRINT, `print(${a} / ${b})`, Number.isInteger(div) ? div.toFixed(1) : String(div), [Math.floor(div), Math.round(div), a % b], "/ always gives a float in Python 3, even when it divides evenly.");
+  } },
+  { min: 2, f: () => {
+    const n = ri(2, 4);
+    const d = "{" + Array.from({ length: n }, (_, i) => `${i}: ${i * i}`).join(", ") + "}";
+    return Q(PRINT, `print({x: x * x for x in range(${n})})`, d,
+      ["{" + Array.from({ length: n }, (_, i) => `${i}: ${i * 2}`).join(", ") + "}", pyList(Array.from({ length: n }, (_, i) => i * i)), "{" + Array.from({ length: n }, (_, i) => `${i * i}: ${i}`).join(", ") + "}"],
+      "A dict comprehension makes key: value pairs.");
+  } },
+  { min: 2, f: () => {
+    // one word of each length, so the order by length is never a tie
+    const words = shuf([pick(["fig", "pea", "yam"]), pick(["kiwi", "plum", "pear"]), pick(["banana", "cherry", "orange"])]);
+    const sorted = [...words].sort((x, y) => x.length - y.length);
+    return Q(PRINT, `words = ${pyList(words)}\nprint(sorted(words, key=len))`, pyList(sorted), [pyList([...words].sort()), pyList(words), pyList([...sorted].reverse())],
+      "key=len sorts by length, shortest first.");
+  } },
+  { min: 2, f: () => {
+    const a = nums(2, 1, 9), l = shuf(["a", "b", "c"]).slice(0, 2);
+    return Q(PRINT, `print(list(zip(${pyList(a)}, ${pyList(l)})))`, `[(${a[0]}, '${l[0]}'), (${a[1]}, '${l[1]}')]`,
+      [`[${a[0]}, '${l[0]}', ${a[1]}, '${l[1]}']`, `[(${a[0]}, ${a[1]}), ('${l[0]}', '${l[1]}')]`, `{${a[0]}: '${l[0]}', ${a[1]}: '${l[1]}'}`],
+      "zip pairs up items at the same position.");
+  } },
+  { min: 3, f: () => {
+    const a = ri(1, 9), b = ri(10, 20);
+    return Q(PRINT, `def add(item, bag=[]):\n    bag.append(item)\n    return bag\n\nadd(${a})\nprint(add(${b}))`, pyList([a, b]), [pyList([b]), pyList([a]), "None"],
+      "The default list is created once and shared between calls. Use bag=None and create the list inside.");
+  } },
+];
+
+/* ---------- SQL ---------- */
+const SQL_NAMES = ["Ava", "Ben", "Cleo", "Dan", "Eli", "Fay", "Gus", "Hana", "Ivan", "Jade"];
+function makeTable() {
+  const n = ri(5, 7);
+  const names = shuf(SQL_NAMES).slice(0, n);
+  const scores = shuf(Array.from({ length: 60 }, (_, i) => 40 + i)).slice(0, n); // all different
+  return names.map((name, i) => ({ name, age: ri(11, 14), score: scores[i] }));
+}
+function showTable(rows) {
+  const pad = (s, w) => String(s).padEnd(w);
+  return "students\n" + "name  | age | score\n" + rows.map((r) => `${pad(r.name, 5)} | ${pad(r.age, 3)} | ${r.score}`).join("\n");
+}
+const SQL_CONCEPTS = [
+  ["PRIMARY KEY", "Which constraint gives every row a unique id?"],
+  ["FOREIGN KEY", "Which constraint links a column to a row in another table?"],
+  ["INNER JOIN", "Which join keeps only rows that match in both tables?"],
+  ["LEFT JOIN", "Which join keeps every row from the first table, even without a match?"],
+  ["HAVING", "Which clause filters groups after GROUP BY?"],
+  ["IS NULL", "How do you check for a missing value in SQL?"],
+  ["An index", "What makes lookups on a column much faster?"],
+  ["A transaction", "What makes several statements succeed or fail together?"],
+  ["Parameterised queries", "What is the best protection against SQL injection?"],
+  ["DISTINCT", "Which keyword removes duplicate rows from a result?"],
+];
+const SQL_STATEMENTS = [
+  ["INSERT INTO", "adds a new row"], ["UPDATE", "changes existing rows"], ["DELETE FROM", "removes rows"],
+  ["SELECT", "reads rows"], ["CREATE TABLE", "makes a new table"], ["DROP TABLE", "deletes a whole table"],
+];
+const SQLG = [
+  () => {
+    const rows = makeTable(), t = ri(50, 90);
+    const c = rows.filter((r) => r.score > t).length;
+    return Q("What does this query return?", `${showTable(rows)}\n\nSELECT COUNT(*) FROM students\nWHERE score > ${t};`, c,
+      [rows.length - c, rows.filter((r) => r.score >= t - 10).length === c ? c + 1 : rows.filter((r) => r.score >= t - 10).length, rows.length], `${c} students have a score above ${t}.`, [0]);
+  },
+  () => {
+    const rows = makeTable();
+    const top = [...rows].sort((a, b) => b.score - a.score)[0], low = [...rows].sort((a, b) => a.score - b.score)[0];
+    return Q("What does this query return?", `${showTable(rows)}\n\nSELECT name FROM students\nORDER BY score DESC\nLIMIT 1;`, top.name,
+      [low.name, rows[0].name === top.name ? rows[1].name : rows[0].name, rows[rows.length - 1].name === top.name ? rows[1].name : rows[rows.length - 1].name], "DESC sorts highest first, and LIMIT 1 keeps only the top row.", SQL_NAMES);
+  },
+  () => {
+    const rows = makeTable(), f = pick(["MAX", "MIN"]);
+    const v = f === "MAX" ? Math.max(...rows.map((r) => r.score)) : Math.min(...rows.map((r) => r.score));
+    const o = f === "MAX" ? Math.min(...rows.map((r) => r.score)) : Math.max(...rows.map((r) => r.score));
+    return Q("What does this query return?", `${showTable(rows)}\n\nSELECT ${f}(score) FROM students;`, v, [o, rows[0].score === v ? rows[1].score : rows[0].score, rows.length],
+      `${f} returns the ${f === "MAX" ? "highest" : "lowest"} value in the column.`);
+  },
+  () => {
+    const rows = makeTable(), a = ri(12, 13);
+    const hits = rows.filter((r) => r.age >= a);
+    const s = hits.length ? hits.reduce((x, r) => x + r.score, 0) : "NULL"; // SUM of no rows is NULL, not 0
+    const all = rows.reduce((x, r) => x + r.score, 0);
+    return Q("What does this query return?", `${showTable(rows)}\n\nSELECT SUM(score) FROM students\nWHERE age >= ${a};`, s,
+      [all === s ? s + 10 : all, rows.filter((r) => r.age > a).reduce((x, r) => x + r.score, 0) === s ? s + 1 : rows.filter((r) => r.age > a).reduce((x, r) => x + r.score, 0), rows.filter((r) => r.age >= a).length],
+      hits.length ? `Add the scores of everyone aged ${a} or older.` : `Nobody is ${a} or older, and SUM of no rows is NULL, not 0.`, ["NULL", 0]);
+  },
+  () => {
+    const rows = makeTable();
+    const d = new Set(rows.map((r) => r.age)).size;
+    return Q("What does this query return?", `${showTable(rows)}\n\nSELECT COUNT(DISTINCT age) FROM students;`, d, [rows.length, d + 1, d - 1 || d + 2],
+      "DISTINCT counts each age only once.");
+  },
+  () => {
+    const rows = makeTable(), letter = pick(rows).name[0];
+    const c = rows.filter((r) => r.name.startsWith(letter)).length;
+    return Q("What does this query return?", `${showTable(rows)}\n\nSELECT COUNT(*) FROM students\nWHERE name LIKE '${letter}%';`, c, [0, rows.length, c + 1],
+      `% matches any characters, so '${letter}%' means names starting with ${letter}.`);
+  },
+  () => fromPool(SQL_STATEMENTS, (r) => `Which SQL statement ${r[1]}?`, (r) => `${r[0]} ${r[1]}.`),
+  { min: 1, f: () => {
+    const rows = makeTable();
+    const d = new Set(rows.map((r) => r.age)).size;
+    return Q("How many rows does this query return?", `${showTable(rows)}\n\nSELECT age, COUNT(*) FROM students\nGROUP BY age;`, d, [rows.length, 1, d + 1],
+      "GROUP BY makes one row for each different age.");
+  } },
+  { min: 1, f: () => fromPool(SQL_CONCEPTS, (r) => r[1], (r) => `${r[0]}.`) },
+  { min: 1, f: () => {
+    const forms = [
+      ["What goes wrong here?", "UPDATE students SET score = 100;", "Every row is changed because there is no WHERE", ["Nothing, only one row changes", "It is a syntax error", "It deletes the table"], "Without WHERE, UPDATE applies to every row."],
+      ["Why does this find nobody, even though some emails are missing?", "SELECT * FROM users\nWHERE email = NULL;", "NULL must be checked with IS NULL", ["email should be in quotes", "NULL is not a real value in SQL", "SELECT * is not allowed"], "Nothing is ever equal to NULL, not even NULL. Use IS NULL."],
+      ["Why does this fail?", "SELECT name, COUNT(*) FROM students;", "name is not in a GROUP BY", ["COUNT needs a column name", "SELECT cannot have two columns", "students must be in quotes"], "Mixing a plain column with an aggregate needs GROUP BY name."],
+    ];
+    const [t, code, a, w, why] = pick(forms);
+    return Q(t, code, a, w, why);
+  } },
+];
+
+/* ---------- PHP ---------- */
+const PHP_CONCEPTS = [
+  ["$", "Which symbol starts every variable name in PHP?"], ["<?php", "Which tag starts a block of PHP code?"],
+  ["->", "Which operator calls a method on an object?"], ["=>", "Which symbol pairs a key with a value in an array?"],
+  ["$_POST", "Which variable holds data sent by a form using method=\"post\"?"], ["session_start()", "Which function must run before you use $_SESSION?"],
+  ["isset()", "Which function checks that a variable exists and is not null?"], ["Prepared statements with PDO", "What is the safe way to put user input into an SQL query?"],
+  ["require", "Which statement stops the script with an error if the file is missing?"], ["echo", "Which statement prints text to the page?"],
+];
+const PHPG = [
+  (d) => {
+    const a = ri(2, 9 + d * 5), b = ri(2, 9), m = ri(2, 4);
+    return Q(PRINT, `$a = ${a};\n$b = ${b};\necho $a + $b * ${m};`, a + b * m, [(a + b) * m, a + b, `${a}${b * m}`], `Multiplication first: ${b} × ${m} = ${b * m}, plus ${a}.`);
+  },
+  () => {
+    const name = pick(["Ava", "Kai", "Leo", "Mia", "Zoe"]);
+    return Q(PRINT, `$name = "${name}";\necho "Hi " . $name . "!";`, `Hi ${name}!`, [`Hi $name!`, `Hi. ${name}.!`, `Hi ${name}`], "The dot . joins strings in PHP.");
+  },
+  () => {
+    const a = ri(2, 9), b = ri(1, 9);
+    const forms = [
+      [`echo "${a}" + ${b};`, a + b, [`${a}${b}`, "Error", a], "+ always does maths in PHP, so the string becomes a number."],
+      [`echo "${a}" . ${b};`, `${a}${b}`, [a + b, "Error", `${a}.${b}`], ". always joins as text."],
+    ];
+    const [code, ans, wrong, why] = pick(forms);
+    return Q(PRINT, code, ans, wrong, why);
+  },
+  () => {
+    const w = pick(VOCAB[0].filter((r) => r[0].length >= 4))[0].toLowerCase();
+    const forms = [
+      [`echo strlen("${w}");`, w.length, [w.length - 1, w.length + 1, w], "strlen counts the characters."],
+      [`echo strtoupper("${w}");`, w.toUpperCase(), [w, w[0].toUpperCase() + w.slice(1), "1"], "strtoupper capitalises every letter."],
+      [`echo ucfirst("${w}");`, w[0].toUpperCase() + w.slice(1), [w.toUpperCase(), w, "1"], "ucfirst capitalises only the first letter."],
+      [`echo strrev("${w}");`, [...w].reverse().join(""), [w, w.toUpperCase(), w.slice(1)], "strrev reverses the string."],
+      [`echo substr("${w}", 1, 2);`, w.substr(1, 2), [w.substr(0, 2), w.substr(1, 3), w.substr(2, 2)], "substr(string, start, length) starts at index 1 and takes 2 characters."],
+      [`echo str_repeat("${w.slice(0, 2)}", 3);`, w.slice(0, 2).repeat(3), [`${w.slice(0, 2)}3`, w.slice(0, 2), "Error"], "str_repeat repeats the text."],
+    ];
+    const [code, ans, wrong, why] = pick(forms);
+    return Q(PRINT, code, ans, wrong, why);
+  },
+  () => {
+    const a = nums(ri(3, 5), 1, 20);
+    const forms = [
+      [`$nums = [${a.join(", ")}];\necho count($nums);`, a.length, [a.length - 1, a.length + 1, a.reduce((x, y) => x + y, 0)], "count returns the number of items."],
+      [`$nums = [${a.join(", ")}];\necho array_sum($nums);`, a.reduce((x, y) => x + y, 0), [a.length, Math.max(...a), a.reduce((x, y) => x + y, 0) - a[0]], "array_sum adds every item."],
+      [`$nums = [${a.join(", ")}];\necho $nums[1];`, a[1], [a[0], a[2], "Error"], "Indexes start at 0, so [1] is the second item."],
+      [`$nums = [${a.join(", ")}];\necho max($nums);`, Math.max(...a), [Math.min(...a), a[0] === Math.max(...a) ? a[1] : a[0], a.length], "max returns the largest value."],
+      [`$nums = [${a.join(", ")}];\necho implode("-", $nums);`, a.join("-"), [a.join(""), a.join(", "), "Array"], "implode joins array items with the separator."],
+    ];
+    const [code, ans, wrong, why] = pick(forms);
+    return Q(PRINT, code, ans, wrong, why);
+  },
+  (d) => {
+    const n = ri(3, 6 + d * 2);
+    const s = (n * (n + 1)) / 2;
+    return Q(PRINT, `$total = 0;\nfor ($i = 1; $i <= ${n}; $i++) {\n    $total += $i;\n}\necho $total;`, s, [s - n, s + n + 1, n], `The loop adds 1 up to ${n}, giving ${s}.`);
+  },
+  () => {
+    const age = ri(8, 15), name = pick(["Ava", "Kai", "Leo"]);
+    const forms = [
+      [`$user = ["name" => "${name}", "age" => ${age}];\necho $user["age"];`, age, [name, "Array", "Error"], "Keys look up values in an associative array."],
+      [`$user = ["name" => "${name}", "age" => ${age}];\necho count($user);`, 2, [1, 4, age], "There are two key => value pairs."],
+    ];
+    const [code, ans, wrong, why] = pick(forms);
+    return Q(PRINT, code, ans, wrong, why);
+  },
+  (d) => {
+    const a = ri(10, 50), b = ri(2, 9);
+    const forms = [
+      [`echo intdiv(${a}, ${b});`, Math.floor(a / b), [(a / b).toFixed(2), a % b, Math.ceil(a / b) === Math.floor(a / b) ? Math.floor(a / b) + 1 : Math.ceil(a / b)], "intdiv drops the decimal part."],
+      [`echo ${a} % ${b};`, a % b, [Math.floor(a / b), b - (a % b), (a % b) + 1], "% gives the remainder."],
+    ];
+    const [code, ans, wrong, why] = pick(forms);
+    return Q(PRINT, code, ans, wrong, why);
+  },
+  () => {
+    const n = ri(2, 9);
+    const forms = [
+      [`$n = ${n};\necho "I have $n apples";`, `I have ${n} apples`, ["I have $n apples", "I have apples", "Error"], "Double quotes put the variable's value into the text."],
+      [`$n = ${n};\necho 'I have $n apples';`, "I have $n apples", [`I have ${n} apples`, "I have apples", "Error"], "Single quotes print the text exactly as written."],
+    ];
+    const [code, ans, wrong, why] = pick(forms);
+    return Q(PRINT, code, ans, wrong, why);
+  },
+  () => fromPool(PHP_CONCEPTS, (r) => r[1], (r) => `${r[0]}.`),
+  { min: 1, f: () => {
+    const g = pick(["guest", "friend", "player"]);
+    const forms = [
+      [`$name = null;\necho $name ?? "${g}";`, g, ["null", "", "Error"], "?? uses the right side when the left is null or missing."],
+      [`function greet($who = "${g}") {\n    return "Hi $who";\n}\necho greet();`, `Hi ${g}`, ["Hi $who", "Hi ", "Error"], "When no argument is passed, the default value is used."],
+      [`foreach (["a", "b", "c"] as $i => $v) {\n    echo $i;\n}`, "012", ["abc", "123", "a0b1c2"], "$i is the index, starting at 0."],
+    ];
+    const [code, ans, wrong, why] = pick(forms);
+    return Q(PRINT, code, ans, wrong, why);
+  } },
+  { min: 2, f: () => {
+    const forms = [
+      ['var_dump("1" === 1);', "bool(false)", ["bool(true)", "int(1)", "NULL"], "=== also checks the type, and a string is not an int."],
+      ['var_dump("1" == 1);', "bool(true)", ["bool(false)", "int(1)", "NULL"], "== converts the string to a number before comparing."],
+      ['var_dump(0 == "a");', "bool(false)", ["bool(true)", "int(0)", "NULL"], 'Since PHP 8, comparing a number with a non-numeric string compares them as strings, so 0 == "a" is false.'],
+    ];
+    const [code, ans, wrong, why] = pick(forms);
+    return Q(PRINT, code, ans, wrong, why);
+  } },
+];
+
 /* ---------- vocabulary (any track) ---------- */
 function vocab(tier) {
   const bank = VOCAB[Math.min(tier, 2)];
@@ -472,13 +945,19 @@ function vocab(tier) {
     : Q(`Which word means: ${def.charAt(0).toLowerCase() + def.slice(1)}`, "", w, others.map((r) => r[0]), `${w}: ${def}`);
 }
 
-const GEN = { js: JS, web: WEB, logic: LOGIC, debug: DEBUG };
+const GEN = { js: JS, web: WEB, logic: LOGIC, debug: DEBUG, python: PY, css: CSSG, sql: SQLG, php: PHPG };
 const TITLES = {
   js: ["Variable Vault", "Array Arcade", "Loop Lab", "String Theory", "Math Machine", "Type Check", "Map Quest", "Filter Frenzy", "Reduce Rush", "Closure Cove", "Async Avenue", "Spread Party"],
-  web: ["Tag Hunt", "Style Studio", "Box Model Bay", "Selector Showdown", "Colour Code", "Flex Factory", "Grid Garden", "Status Codes", "Layout Lane", "Access for All", "Speed Run", "Safe Surfing"],
+  web: ["Tag Hunt", "Attribute Alley", "Form Factory", "List Lane", "Head Start", "Link Up", "Semantic Street", "Status Codes", "Input Island", "Access for All", "Page Builder", "Safe Surfing"],
+  css: ["Style Studio", "Box Model Bay", "Selector Showdown", "Colour Code", "Unit Converter", "Flex Factory", "Grid Garden", "Pseudo Party", "Rem Rally", "Layout Lane", "Specificity Peak", "Motion Lab"],
+  python: ["Hello Python", "Slice Shop", "List Lab", "Range Rover", "Dict Diner", "F-String Fun", "Type Detective", "Loop Lagoon", "Comprehension Cove", "Zip Line", "Sort Station", "Pythonic Peak"],
+  sql: ["First Query", "Count Down", "Order Up", "Max Out", "Sum It", "Distinct Docks", "Like a Pro", "Group Therapy", "Join Junction", "Null Island", "Key Keeper", "Query Quest"],
+  php: ["Echo Echo", "Dot Joiner", "String Shop", "Array Avenue", "Loop Lane", "Key Value Inn", "Quote Quest", "Divide Docks", "Default Den", "Foreach Forest", "Type Juggle", "Server Side"],
   logic: ["True or False", "Binary Bridge", "Loop Counter", "Pattern Hunter", "Order of Ops", "Halving Hill", "Grade Gate", "Nested Nest", "Data Docks", "Big O Peak", "Search Party", "Brain Gym"],
   debug: ["Bug Hunt", "Error Explorer", "Off by One", "Squash It", "Crash Course", "Fix the Flow", "Case Closed", "Silent Bugs", "Trace It", "Patch Party", "Race Track", "Leak Detective"],
 };
+// Vocabulary questions show up less in the language tracks, which have plenty of their own.
+const VOCAB_CHANCE = { js: 0.25, web: 0.25, logic: 0.25, debug: 0.25, css: 0.15, python: 0.1, sql: 0.1, php: 0.1 };
 
 function makeQuestions(tier, trk, k, id) {
   R = seeded(id * 2654435761);
@@ -487,8 +966,8 @@ function makeQuestions(tier, trk, k, id) {
   const qs = [];
   const seen = new Set();
   let guard = 0;
-  while (qs.length < 3 && guard++ < 60) {
-    const q = R() < 0.25 ? vocab(tier) : pick(gens).f(d, k);
+  while (qs.length < 3 && guard++ < 80) {
+    const q = R() < VOCAB_CHANCE[trk] ? vocab(tier) : pick(gens).f(d, k);
     if (!q) continue;
     const key = q[0] + q[1];
     if (seen.has(key)) continue;
@@ -499,25 +978,37 @@ function makeQuestions(tier, trk, k, id) {
   return qs;
 }
 
+/*
+  Level ids stay stable so saved stars never move:
+    1–800    the original four tracks (JavaScript, HTML, Logic, Debugging), 200 per tier
+    801–1600 the newer tracks (Python, CSS, SQL, PHP), 200 per tier
+  Inside each block the 4 tracks take turns, so the previous level in the
+  same track is always id - 4. Every track gets 50 levels per tier.
+*/
+const BLOCKS = [TRACK_ORDER, NEW_TRACKS];
 const LV = [];
-for (let tier = 0; tier < TIERS.length; tier++) {
-  const hand = HAND_LV.filter((l) => l.tier === tier);
-  for (let k = 0; k < PER_TIER; k++) {
-    const id = tier * PER_TIER + k + 1;
-    const trk = TRACK_ORDER[k % 4];
-    const h = hand.find((l) => l.trk === trk && k < 4);
-    if (h) {
-      LV.push({ id, tier, trk, title: h.title, qs: h.qs });
-      continue;
+BLOCKS.forEach((tracks, b) => {
+  for (let tier = 0; tier < TIERS.length; tier++) {
+    const hand = b === 0 ? HAND_LV.filter((l) => l.tier === tier) : [];
+    for (let k = 0; k < PER_TIER; k++) {
+      const id = b * TIERS.length * PER_TIER + tier * PER_TIER + k + 1;
+      const trk = tracks[k % 4];
+      const n = Math.floor(k / 4) + 1; // level number inside its track
+      const h = k < 4 && hand.find((l) => l.trk === trk);
+      if (h) {
+        LV.push({ id, tier, trk, n, title: h.title, qs: h.qs });
+        continue;
+      }
+      const pool = TITLES[trk];
+      const round = n - 1;
+      const title = pool[round % pool.length] + (round >= pool.length ? " " + (Math.floor(round / pool.length) + 1) : "");
+      let qs = null;
+      // Generated lazily the first time a level is opened.
+      LV.push({ id, tier, trk, n, title, get qs() { return qs || (qs = makeQuestions(tier, trk, k, id)); } });
     }
-    const pool = TITLES[trk];
-    const round = Math.floor(k / 4);
-    const title = pool[round % pool.length] + (round >= pool.length ? " " + (Math.floor(round / pool.length) + 1) : "");
-    let qs = null;
-    // Generated lazily the first time a level is opened.
-    LV.push({ id, tier, trk, title, get qs() { return qs || (qs = makeQuestions(tier, trk, k, id)); } });
   }
-}
+});
+const TRACK_SIZE = PER_TIER / 4; // 50 levels per track per tier
 
 /** Old saves used ids 1–16 (4 per tier). Map them onto the new ids. */
 function migrateLevelIds(lv) {
@@ -531,4 +1022,4 @@ function migrateLevelIds(lv) {
   return outLv;
 }
 
-if (typeof module !== "undefined") module.exports = { LV, PER_TIER, makeQuestions, migrateLevelIds };
+if (typeof module !== "undefined") module.exports = { LV, PER_TIER, TRACK_SIZE, makeQuestions, migrateLevelIds };
