@@ -1,7 +1,7 @@
 /*
   LEVELS-GEN.JS
   -------------
-  Builds 500 levels for every tier (2,000 in all): 10 tracks x 50 levels.
+  Builds 1,250 levels for every tier (5,000 in all): 10 tracks x 125 levels.
   The first JavaScript, HTML, Logic and Debugging level of each tier are the
   hand-written ones in data.js; the rest come from question generators below.
   Every level is seeded by its id, so a level always has the same questions,
@@ -1575,43 +1575,48 @@ const VOCAB_CHANCE = { js: 1, web: 1, css: 1, logic: 1, debug: 1, interview: 1, 
   anywhere in the track. A generator that cannot produce anything new is retired,
   so fact lists are used up evenly and the numeric ones fill the rest.
 */
-const SLOTS = 150;
+// Questions are dealt in two rounds. Round 1 (150 per tier = levels 1–50) is exactly
+// what earlier versions dealt, so existing levels keep their questions. Round 2 adds
+// 225 more per tier (levels 51–125), still skipping anything already dealt.
+const ROUNDS = [{ slots: 150, seed: "deck" }, { slots: 225, seed: "deck2" }];
 const decks = {};
 const deckStats = {};
 function buildDeck(trk) {
   const seen = new Set();
-  const tiers = [];
+  const tiers = TIERS.map(() => []);
   let unique = 0;
-  for (let tier = 0; tier < TIERS.length; tier++) {
-    R = seeded(strHash(`${trk}-deck-${tier}`));
-    const gens = GEN[trk].map((g) => (typeof g === "function" ? { min: 0, f: g } : g)).filter((g) => g.min <= tier).map((g) => () => g.f(tier, 0));
-    if (VOCAB_CHANCE[trk]) gens.push(() => vocab(tier, trk));
-    const dealt = [];
-    // Pass 1 caps each question type at a fair share so no type dominates;
-    // pass 2 lifts the cap only if the tier still has empty slots.
-    const used = gens.map(() => 0);
-    for (const cap of [Math.max(6, Math.ceil((SLOTS / gens.length) * 1.5)), Infinity]) {
-    const retired = new Set();
-    while (dealt.length < SLOTS && retired.size < gens.length) {
-      for (const gi of shuf(gens.map((_, i) => i))) {
-        if (retired.has(gi) || dealt.length >= SLOTS) continue;
-        if (used[gi] >= cap) { retired.add(gi); continue; }
-        let got = null;
-        for (let t = 0; t < 40 && !got; t++) {
-          const q = gens[gi]();
-          if (q && !seen.has(q[0] + "\u0001" + q[1])) got = q;
+  for (const round of ROUNDS) {
+    for (let tier = 0; tier < TIERS.length; tier++) {
+      R = seeded(strHash(`${trk}-${round.seed}-${tier}`));
+      const gens = GEN[trk].map((g) => (typeof g === "function" ? { min: 0, f: g } : g)).filter((g) => g.min <= tier).map((g) => () => g.f(tier, 0));
+      if (VOCAB_CHANCE[trk]) gens.push(() => vocab(tier, trk));
+      const dealt = [];
+      // Pass 1 caps each question type at a fair share so no type dominates;
+      // pass 2 lifts the cap only if the tier still has empty slots.
+      const used = gens.map(() => 0);
+      for (const cap of [Math.max(6, Math.ceil((round.slots / gens.length) * 1.5)), Infinity]) {
+        const retired = new Set();
+        while (dealt.length < round.slots && retired.size < gens.length) {
+          for (const gi of shuf(gens.map((_, i) => i))) {
+            if (retired.has(gi) || dealt.length >= round.slots) continue;
+            if (used[gi] >= cap) { retired.add(gi); continue; }
+            let got = null;
+            for (let t = 0; t < 40 && !got; t++) {
+              const q = gens[gi]();
+              if (q && !seen.has(q[0] + "\u0001" + q[1])) got = q;
+            }
+            if (!got) { retired.add(gi); continue; }
+            seen.add(got[0] + "\u0001" + got[1]);
+            used[gi]++;
+            dealt.push(got);
+          }
         }
-        if (!got) { retired.add(gi); continue; }
-        seen.add(got[0] + "\u0001" + got[1]);
-        used[gi]++;
-        dealt.push(got);
       }
+      unique += dealt.length;
+      // Only if a track truly runs dry: reuse this round's own questions.
+      for (let i = 0; dealt.length < round.slots; i++) dealt.push(dealt[i]);
+      tiers[tier].push(...dealt);
     }
-    }
-    unique += dealt.length;
-    // Only if a track truly runs dry: reuse this tier's own questions.
-    for (let i = 0; dealt.length < SLOTS; i++) dealt.push(dealt[i]);
-    tiers.push(dealt);
   }
   R = Math.random;
   deckStats[trk] = unique;
@@ -1624,24 +1629,33 @@ function questionsFor(trk, tier, n) {
 
 /*
   Level ids stay stable so saved stars never move:
-    1–800     JavaScript, HTML, Logic, Debugging
-    801–1600  Python, CSS, SQL, PHP
-    1601–2000 Networking, Interview Prep
+    1–800      JavaScript, HTML, Logic, Debugging       (levels 1–50 of each tier)
+    801–1600   Python, CSS, SQL, PHP                   (levels 1–50)
+    1601–2000  Networking, Interview Prep              (levels 1–50)
+    2001–5000  all 10 tracks                           (levels 51–125)
   Inside each block the tracks take turns. Every level stores "prev", the id
   of the level before it in the same track and tier.
 */
-const BLOCKS = [TRACK_ORDER, NEW_TRACKS, ["networking", "interview"]];
+const ALL_TRACKS = [...TRACK_ORDER, ...NEW_TRACKS, "networking", "interview"];
+const BLOCKS = [
+  { tracks: TRACK_ORDER, from: 1, to: 50 },
+  { tracks: NEW_TRACKS, from: 1, to: 50 },
+  { tracks: ["networking", "interview"], from: 1, to: 50 },
+  { tracks: ALL_TRACKS, from: 51, to: 125 },
+];
 const LV = [];
+const idOf = {}; // "track/tier/n" -> id, used to find each level's prev
 let nextId = 1;
-BLOCKS.forEach((tracks, b) => {
-  const perTier = 50 * tracks.length;
+BLOCKS.forEach(({ tracks, from, to }, b) => {
+  const perTier = (to - from + 1) * tracks.length;
   for (let tier = 0; tier < TIERS.length; tier++) {
     const hand = b === 0 ? HAND_LV.filter((l) => l.tier === tier) : [];
     for (let k = 0; k < perTier; k++) {
       const id = nextId++;
       const trk = tracks[k % tracks.length];
-      const n = Math.floor(k / tracks.length) + 1; // level number inside its track
-      const prev = n > 1 ? id - tracks.length : 0;
+      const n = from + Math.floor(k / tracks.length); // level number inside its track
+      const prev = n > 1 ? idOf[`${trk}/${tier}/${n - 1}`] : 0;
+      idOf[`${trk}/${tier}/${n}`] = id;
       const h = n === 1 && hand.find((l) => l.trk === trk);
       if (h) {
         LV.push({ id, tier, trk, n, prev, title: h.title, qs: h.qs });
@@ -1654,7 +1668,7 @@ BLOCKS.forEach((tracks, b) => {
     }
   }
 });
-const TRACK_SIZE = 50; // levels per track per tier
+const TRACK_SIZE = 125; // levels per track per tier
 
 /** Old saves used ids 1–16 (4 per tier). Map them onto the new ids. */
 function migrateLevelIds(lv) {

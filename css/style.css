@@ -129,3 +129,11 @@ nav .on{color:var(--pri)}
 .tt .masc .itile,.tp .masc .itile{right:-6px;bottom:-3px}
 .tr b.trn{display:flex;align-items:center;gap:8px}
 .tr .mas{width:78px;height:78px;top:6px;right:8px}
+
+/* stats pills: centre the icon and number */
+.pill{display:flex;justify-content:center;align-items:center;gap:8px}
+/* result and out-of-lives screens sit in the middle instead of leaving a gap at the bottom */
+.scr.mid{justify-content:center}
+.scr.mid .btn{flex:none}
+/* lesson: keep Next at the bottom edge with normal padding */
+.scr.lone .nextb{margin-bottom:0}

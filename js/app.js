@@ -157,21 +157,21 @@ function profile(){
 }
 function lesson(){
   const l=LV[L.id-1],q=L.qs[L.i],ans=L.sel!=null,ok=ans&&L.sel===q.a;
-  return `<div class="scr"><div class="top"><button class="back" data-a="quit" aria-label="Exit lesson">${ic("back",20)}</button><div class="prog">${L.qs.map((_,i)=>`<i class="${i<L.i||(i===L.i&&ans)?"d":""}"></i>`).join("")}</div><b class="stat" style="color:var(--bad)">${ic("heart",20,2,"currentColor")}${S.lives}</b></div>
+  return `<div class="scr lone"><div class="top"><button class="back" data-a="quit" aria-label="Exit lesson">${ic("back",20)}</button><div class="prog">${L.qs.map((_,i)=>`<i class="${i<L.i||(i===L.i&&ans)?"d":""}"></i>`).join("")}</div><b class="stat" style="color:var(--bad)">${ic("heart",20,2,"currentColor")}${S.lives}</b></div>
   <div class="q"><div class="row mut" style="font-weight:800;margin-bottom:6px;font-size:13px">${masc(TRK[l.trk].img,TRK[l.trk].icon,TRK[l.trk].fg,40)}${TRK[l.trk].n} · ${TIERS[l.tier].n} · Level ${num(l)}: ${l.title}</div><h2>${esc(q.q)}</h2>${q.code?`<pre>${esc(q.code)}</pre>`:""}</div>
   <div class="opts">${q.o.map((o,i)=>`<button class="opt ${ans?(i===q.a?"ok":i===L.sel?"bad":""):""}" data-a="opt" data-k="${i}" ${ans?"disabled":""}><span>${esc(o)}</span>${ans&&i===q.a?ic("check",18,3):ans&&i===L.sel?ic("x",18,3):""}</button>`).join("")}</div>
   ${ans?`<div class="fbk ${ok?"ok":"bad"} pop"><b>${ic(ok?"check":"bulb",18,3)} ${ok?"Correct! +10 XP":"Not quite. You lost a life."}</b>${esc(q.why)}</div>`:""}
   <button class="btn nextb" data-a="next" ${ans?"":"disabled"}>${S.lives<1&&ans&&!ok?"Continue":L.i+1===L.qs.length?"Finish":"Next"}</button></div>`;
 }
 function nolives(){
-  return `<div class="scr lone" style="text-align:center">${im("catGrump","res float")}<h1 style="font-size:28px">Out of lives</h1>
+  return `<div class="scr lone mid" style="text-align:center">${im("catGrump","res float")}<h1 style="font-size:28px">Out of lives</h1>
   <div class="row" style="justify-content:center">${heartRow()}</div>
   <p class="mut">${S.lives>0?"A life is back. Ready to try again?":`Next life in <b class="lt">${fmt()}</b>. You get one back every 20 minutes.`}</p>
   ${S.lives>0&&L?`<button class="btn" data-a="again">Try again</button>`:""}<button class="btn ghost" data-a="levels">Back to levels</button></div>`;
 }
 function result(){
   const l=LV[L.id-1],ok=L.score>=2,same=LV.find(x=>x.trk===l.trk&&x.tier===l.tier&&x.n===l.n+1),n=same&&unlocked(same)?same:LV.find(x=>x.tier===l.tier&&unlocked(x)&&!passed(x))||same,img=!ok?"catGrump":L.score===3?"lionDance":"ok";
-  return `<div class="scr lone" style="text-align:center">${im(img,"res float")}
+  return `<div class="scr lone mid" style="text-align:center">${im(img,"res float")}
   <h1 style="font-size:30px">${ok?"Level complete!":"So close!"}</h1>${starRow(L.score,34)}
   <p class="mut">${ok?`${L.score} of 3 correct, +${L.score*10} XP`:`${L.score} of 3 correct. You need 2 to move on.`}</p>
   ${L.rank?`<div class="card pop row" style="justify-content:center">${masc(TIERS[L.rank].img,TIERS[L.rank].icon,TIERS[L.rank].col,48)}<b>Rank up: ${TIERS[L.rank].n}!</b></div>`:""}
