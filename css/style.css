@@ -109,8 +109,7 @@ nav .on{color:var(--pri)}
 .itile.solid{background:var(--c);color:#fff}
 .tt.on .itile{background:rgba(255,255,255,.22)}
 .res-ic{align-self:center;margin:6px auto;border-radius:34%}
-.tr .mas{position:absolute;right:10px;top:10px;width:auto;height:auto}
-.tr{min-height:112px}
+.tr{min-height:156px}
 .bd .itile{display:grid;margin:0 auto 6px}.bd.lock .itile{filter:grayscale(1);opacity:.4}
 /* levels: track picker */
 .trkpick{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
@@ -120,3 +119,13 @@ nav .on{color:var(--pri)}
 .lvgrid{grid-template-columns:repeat(5,1fr);gap:8px}
 .lv{font-size:18px;border-radius:16px}
 .lv small{font-size:9px!important}
+
+/* pictures with a small coloured icon pinned to the corner */
+.masc{position:relative;display:inline-block;flex:none}
+.masc>img{width:100%;height:100%;object-fit:contain}
+.masc .itile{position:absolute;right:-4px;bottom:-4px;border:2px solid #fff}
+.bd .masc{display:block;margin:0 auto 6px}
+.bd.lock .masc{filter:grayscale(1);opacity:.4}
+.tt .masc .itile,.tp .masc .itile{right:-6px;bottom:-3px}
+.tr b.trn{display:flex;align-items:center;gap:8px}
+.tr .mas{width:78px;height:78px;top:6px;right:8px}

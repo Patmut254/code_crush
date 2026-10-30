@@ -5,12 +5,14 @@ const P={home:'<path d="M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1
 const ic=(n,z=22,w=2,f="none")=>`<svg width="${z}" height="${z}" viewBox="0 0 24 24" fill="${f}" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
 /* a coloured icon on a soft tile of the same colour */
 const tile=(n,col,z=44,c="")=>`<span class="itile ${c}" style="--c:${col};width:${z}px;height:${z}px">${ic(n,Math.round(z*.56),2.2)}</span>`;
+/* a picture with its coloured icon pinned to the corner */
+const masc=(img,icon,col,z=46,c="")=>`<span class="masc ${c}" style="width:${z}px;height:${z}px">${im(img)}${tile(icon,col,Math.max(18,Math.round(z*.42)),"solid")}</span>`;
 const im=(k,c="")=>`<img class="${c}" src="assets/${k}.webp" alt="" draggable="false">`;
 const AVS=["av_laptop","av_gamer","av_chair","av_curly","av_med","av_bow","av_brown","av_street","av_elena","av_bun","av_navi","av_momo","pixar","roblox","okf","lion","fish","fly"];
 const BADGES=[
-{id:"first",n:"First Level",icon:"star",col:"#F2A900"},{id:"streak",n:"3 Day Streak",icon:"flame",col:"#F0642D"},{id:"perfect",n:"Perfect Score",icon:"medal",col:"#E5383B"},
-{id:"bug",n:"Bug Squasher",icon:"bug",col:"#D6455B"},{id:"logic",n:"Logic Star",icon:"brain",col:"#7B4FD6"},{id:"curious",n:"Curious Mind",icon:"compass",col:"#0E8FA8"},
-{id:"mid",n:"Mid Dev",icon:"rocket",col:"#2E7CF6"},{id:"pro",n:"Pro Dev",icon:"bolt",col:"#F08C00"},{id:"spec",n:"Specialist",icon:"crown",col:"#E5383B"}];
+{id:"first",img:"dog",n:"First Level",icon:"star",col:"#F2A900"},{id:"streak",img:"camel",n:"3 Day Streak",icon:"flame",col:"#F0642D"},{id:"perfect",img:"giraffe",n:"Perfect Score",icon:"medal",col:"#E5383B"},
+{id:"bug",img:"bear",n:"Bug Squasher",icon:"bug",col:"#D6455B"},{id:"logic",img:"elephant",n:"Logic Star",icon:"brain",col:"#7B4FD6"},{id:"curious",img:"monkey",n:"Curious Mind",icon:"compass",col:"#0E8FA8"},
+{id:"mid",img:"fish",n:"Mid Dev",icon:"rocket",col:"#2E7CF6"},{id:"pro",img:"fly",n:"Pro Dev",icon:"bolt",col:"#F08C00"},{id:"spec",img:"penguin",n:"Specialist",icon:"crown",col:"#E5383B"}];
 const blank=()=>({ver:2,name:"",xp:0,days:[],badges:[],lv:{},onboarded:false,lives:5,lt:0,av:"av_laptop"});
 /* saves from before 200-level tiers used ids 1-16 */
 const upgrade=o=>{if(o&&!o.ver){o.lv=migrateLevelIds(o.lv);o.ver=2}return o};
@@ -122,8 +124,8 @@ function home(){
   <div class="row"><div class="av">${im(S.av)}</div><div style="flex:1"><h2>Hi, ${esc(S.name||"there")}!</h2><span class="chip">${ic("target",14)} ${TIERS[r].n}</span> <span class="chip">${ic("bolt",14)} ${S.xp} XP</span></div><img src="assets/logo-icon.svg" alt="CodeCrush" class="logo-icon"></div>
   <div class="streak"><b class="stat">${ic("flame",20)} You're on a ${streak()} day streak!</b><div class="week">${weekRow().map(([d,on])=>`<div class="${on?"on":""}"><span>${on?ic("check",14,3):""}</span>${d}</div>`).join("")}</div></div>
   <div class="card row"><span style="flex:1"><b>Lives</b><div class="mut" style="font-size:12px">${S.lives<MAXL?`Next life in <b class="lt">${fmt()}</b>`:"Full. A wrong answer costs one."}</div></span>${heartRow()}</div>
-  <div class="grid">${Object.entries(TRK).map(([k,t])=>{const n=LV.filter(l=>l.trk===k&&passed(l)).length,tot=LV.filter(l=>l.trk===k).length;return `<button class="tr tilt" style="background:${t.bg}" data-a="track" data-k="${k}"><span class="mas">${tile(t.icon,t.fg,46,"solid")}</span><b>${t.n}</b><small>${t.sub}</small><div class="bar"><i style="width:${Math.max(n?4:0,n/tot*100)}%"></i></div><small style="margin:4px 0 0">${n}/${tot} levels</small></button>`}).join("")}</div>
-  ${nx?`<h2>Continue learning</h2><button class="card row tilt" data-a="lv" data-k="${nx.id}">${tile(TRK[nx.trk].icon,TRK[nx.trk].fg,42)}<span style="flex:1"><b>${TRK[nx.trk].n} ${num(nx)}: ${nx.title}</b><div class="mut" style="font-size:12px">${TIERS[nx.tier].n} · ${TRK[nx.trk].n}</div></span>${ic("play",22,2,"currentColor")}</button>`:`<div class="card row">${tile("crown","#E5383B",42)}<b>You finished every level. Legend!</b></div>`}
+  <div class="grid">${Object.entries(TRK).map(([k,t])=>{const n=LV.filter(l=>l.trk===k&&passed(l)).length,tot=LV.filter(l=>l.trk===k).length;return `<button class="tr tilt" style="background:${t.bg}" data-a="track" data-k="${k}">${im(t.img,"mas float")}<b class="trn">${tile(t.icon,t.fg,24,"solid")}${t.n}</b><small>${t.sub}</small><div class="bar"><i style="width:${Math.max(n?4:0,n/tot*100)}%"></i></div><small style="margin:4px 0 0">${n}/${tot} levels</small></button>`}).join("")}</div>
+  ${nx?`<h2>Continue learning</h2><button class="card row tilt" data-a="lv" data-k="${nx.id}">${masc(TRK[nx.trk].img,TRK[nx.trk].icon,TRK[nx.trk].fg,48)}<span style="flex:1"><b>${TRK[nx.trk].n} ${num(nx)}: ${nx.title}</b><div class="mut" style="font-size:12px">${TIERS[nx.tier].n} · ${TRK[nx.trk].n}</div></span>${ic("play",22,2,"currentColor")}</button>`:`<div class="card row">${masc("penguin","crown","#E5383B",48)}<b>You finished every level. Legend!</b></div>`}
   <p class="mut" style="text-align:center;font-size:13px">${LV.filter(passed).length} of ${LV.length} levels complete</p></div>${nav()}`;
 }
 function levels(){
@@ -131,10 +133,10 @@ function levels(){
   if(lvT==null){const l=nx||LV[0];lvT=l.tier;lvK=l.trk}
   const open=tierOpen(lvT),list=tierLv(lvT).filter(l=>l.trk===lvK),t=TRK[lvK];
   return `<div class="scr"><div class="pills"><div class="pill stat">${ic("bolt",20,2,"currentColor")} ${S.xp} XP</div><div class="pill stat">${ic("star",20,2,"currentColor")} ${totalStars()}</div><div class="pill stat" style="color:var(--bad)">${ic("heart",20,2,"currentColor")} ${S.lives}</div></div>
-  <div class="tiertabs">${TIERS.map((x,ti)=>`<button class="tt ${ti===lvT?"on":""} ${tierOpen(ti)?"":"lkd"}" data-a="ltier" data-k="${ti}">${tile(x.icon,ti===lvT?"#ffffff":x.col,30)}<span>${x.n}</span><small>${tierPassed(ti)}/${tierLv(ti).length}</small></button>`).join("")}</div>
+  <div class="tiertabs">${TIERS.map((x,ti)=>`<button class="tt ${ti===lvT?"on":""} ${tierOpen(ti)?"":"lkd"}" data-a="ltier" data-k="${ti}">${masc(x.img,x.icon,x.col,34)}<span>${x.n}</span><small>${tierPassed(ti)}/${tierLv(ti).length}</small></button>`).join("")}</div>
   ${open?"":`<div class="card row">${tile("lock","#F2A900",36)}<small style="flex:1">Pass ${UNLOCK_AT} ${TIERS[lvT-1].n} levels to unlock ${TIERS[lvT].n} (${tierPassed(lvT-1)}/${UNLOCK_AT})</small></div>`}
-  <div class="trkpick">${Object.entries(TRK).map(([k,x])=>{const d=tierLv(lvT).filter(l=>l.trk===k&&passed(l)).length;return `<button class="tp ${k===lvK?"on":""}" style="--c:${x.fg};--b:${x.bg}" data-a="ltrack" data-k="${k}">${tile(x.icon,x.fg,30)}<span>${x.n}</span><small>${d}/${list.length}</small></button>`}).join("")}</div>
-  <div class="row th">${tile(t.icon,t.fg,44)}<div style="flex:1"><h2>${t.n} · ${TIERS[lvT].n}</h2><small>${t.sub}</small></div></div>
+  <div class="trkpick">${Object.entries(TRK).map(([k,x])=>{const d=tierLv(lvT).filter(l=>l.trk===k&&passed(l)).length;return `<button class="tp ${k===lvK?"on":""}" style="--c:${x.fg};--b:${x.bg}" data-a="ltrack" data-k="${k}">${masc(x.img,x.icon,x.fg,34)}<span>${x.n}</span><small>${d}/${list.length}</small></button>`}).join("")}</div>
+  <div class="row th">${masc(t.img,t.icon,t.fg,56,"float")}<div style="flex:1"><h2>${t.n} · ${TIERS[lvT].n}</h2><small>${t.sub}</small></div></div>
   <div class="lvgrid ${open?"":"locked"}">${list.map(l=>{
     const lk=!unlocked(l),s=stars(l),n=num(l);
     if(lk)return `<button class="lv lk" disabled aria-label="Level ${n} locked">${ic("lock",22,2,"#f5c400")}</button>`;
@@ -143,7 +145,7 @@ function levels(){
 }
 function rewards(){
   return `<div class="scr"><h1 style="font-size:28px">Rewards</h1><p class="mut">${S.badges.length} of ${BADGES.length} badges earned</p>
-  <div class="badges">${BADGES.map(b=>`<div class="bd tilt ${S.badges.includes(b.id)?"":"lock"}">${tile(b.icon,b.col,58)}${b.n}</div>`).join("")}</div></div>${nav()}`;
+  <div class="badges">${BADGES.map(b=>`<div class="bd tilt ${S.badges.includes(b.id)?"":"lock"}">${masc(b.img,b.icon,b.col,62)}${b.n}</div>`).join("")}</div></div>${nav()}`;
 }
 function profile(){
   return `<div class="scr"><div class="row"><div class="av lg">${im(S.av)}</div><div><h2>${esc(S.name||"Learner")}</h2><small>${user?esc(user.email||"Guest account"):"Saved on this device"}</small></div></div>
@@ -156,24 +158,24 @@ function profile(){
 function lesson(){
   const l=LV[L.id-1],q=L.qs[L.i],ans=L.sel!=null,ok=ans&&L.sel===q.a;
   return `<div class="scr"><div class="top"><button class="back" data-a="quit" aria-label="Exit lesson">${ic("back",20)}</button><div class="prog">${L.qs.map((_,i)=>`<i class="${i<L.i||(i===L.i&&ans)?"d":""}"></i>`).join("")}</div><b class="stat" style="color:var(--bad)">${ic("heart",20,2,"currentColor")}${S.lives}</b></div>
-  <div class="q"><div class="row mut" style="font-weight:800;margin-bottom:6px;font-size:13px">${tile(TRK[l.trk].icon,TRK[l.trk].fg,30)}${TRK[l.trk].n} · ${TIERS[l.tier].n} · Level ${num(l)}: ${l.title}</div><h2>${esc(q.q)}</h2>${q.code?`<pre>${esc(q.code)}</pre>`:""}</div>
+  <div class="q"><div class="row mut" style="font-weight:800;margin-bottom:6px;font-size:13px">${masc(TRK[l.trk].img,TRK[l.trk].icon,TRK[l.trk].fg,40)}${TRK[l.trk].n} · ${TIERS[l.tier].n} · Level ${num(l)}: ${l.title}</div><h2>${esc(q.q)}</h2>${q.code?`<pre>${esc(q.code)}</pre>`:""}</div>
   <div class="opts">${q.o.map((o,i)=>`<button class="opt ${ans?(i===q.a?"ok":i===L.sel?"bad":""):""}" data-a="opt" data-k="${i}" ${ans?"disabled":""}><span>${esc(o)}</span>${ans&&i===q.a?ic("check",18,3):ans&&i===L.sel?ic("x",18,3):""}</button>`).join("")}</div>
   ${ans?`<div class="fbk ${ok?"ok":"bad"} pop"><b>${ic(ok?"check":"bulb",18,3)} ${ok?"Correct! +10 XP":"Not quite. You lost a life."}</b>${esc(q.why)}</div>`:""}
   <button class="btn nextb" data-a="next" ${ans?"":"disabled"}>${S.lives<1&&ans&&!ok?"Continue":L.i+1===L.qs.length?"Finish":"Next"}</button></div>`;
 }
 function nolives(){
-  return `<div class="scr lone" style="text-align:center">${tile("heartoff","#E5586A",120,"res-ic float")}<h1 style="font-size:28px">Out of lives</h1>
+  return `<div class="scr lone" style="text-align:center">${im("catGrump","res float")}<h1 style="font-size:28px">Out of lives</h1>
   <div class="row" style="justify-content:center">${heartRow()}</div>
   <p class="mut">${S.lives>0?"A life is back. Ready to try again?":`Next life in <b class="lt">${fmt()}</b>. You get one back every 20 minutes.`}</p>
   ${S.lives>0&&L?`<button class="btn" data-a="again">Try again</button>`:""}<button class="btn ghost" data-a="levels">Back to levels</button></div>`;
 }
 function result(){
-  const l=LV[L.id-1],ok=L.score>=2,same=LV.find(x=>x.trk===l.trk&&x.tier===l.tier&&x.n===l.n+1),n=same&&unlocked(same)?same:LV.find(x=>x.tier===l.tier&&unlocked(x)&&!passed(x))||same,[ri_,rc]=!ok?["retry","#E5586A"]:L.score===3?["trophy","#F2A900"]:["star","#2FAE72"];
-  return `<div class="scr lone" style="text-align:center">${tile(ri_,rc,120,"res-ic float")}
+  const l=LV[L.id-1],ok=L.score>=2,same=LV.find(x=>x.trk===l.trk&&x.tier===l.tier&&x.n===l.n+1),n=same&&unlocked(same)?same:LV.find(x=>x.tier===l.tier&&unlocked(x)&&!passed(x))||same,img=!ok?"catGrump":L.score===3?"lionDance":"ok";
+  return `<div class="scr lone" style="text-align:center">${im(img,"res float")}
   <h1 style="font-size:30px">${ok?"Level complete!":"So close!"}</h1>${starRow(L.score,34)}
   <p class="mut">${ok?`${L.score} of 3 correct, +${L.score*10} XP`:`${L.score} of 3 correct. You need 2 to move on.`}</p>
-  ${L.rank?`<div class="card pop row" style="justify-content:center">${tile(TIERS[L.rank].icon,TIERS[L.rank].col,42)}<b>Rank up: ${TIERS[L.rank].n}!</b></div>`:""}
-  ${L.earned.map(b=>`<div class="card pop row" style="justify-content:center">${tile(b.icon,b.col,42)}<b>New badge: ${b.n}</b></div>`).join("")}
+  ${L.rank?`<div class="card pop row" style="justify-content:center">${masc(TIERS[L.rank].img,TIERS[L.rank].icon,TIERS[L.rank].col,48)}<b>Rank up: ${TIERS[L.rank].n}!</b></div>`:""}
+  ${L.earned.map(b=>`<div class="card pop row" style="justify-content:center">${masc(b.img,b.icon,b.col,48)}<b>New badge: ${b.n}</b></div>`).join("")}
   ${ok&&n&&unlocked(n)?`<button class="btn" data-a="lv" data-k="${n.id}">Next level ${ic("arrow",20,2.5)}</button>`:`<button class="btn" data-a="${ok?"levels":"again"}">${ok?"Back to levels":"Try again"}</button>`}
   <button class="btn ghost" data-a="${ok?"again":"levels"}">${ok?"Play again":"Back to levels"}</button></div>`;
 }
