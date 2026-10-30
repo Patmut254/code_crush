@@ -9,7 +9,7 @@ web:{n:"HTML and CSS",sub:"Shape what people see",img:"parrot",c:"var(--ye)"},
 logic:{n:"Logic",sub:"Think like a programmer",img:"eagle",c:"var(--gr)"},
 debug:{n:"Debugging",sub:"Find it, fix it, ship it",img:"tiger",c:"var(--pk)"}};
 // question = [text, code, options, correctIndex, explanation]
-const LV=[
+const HAND_LV=[
 [0,"js","Variables and values",[
 ["Which line stores the number 5 in a variable called age?","",["age = 5 as var","let age = 5;","variable age 5","int age: 5"],1,"let creates a variable. The name comes next, then = and the value."],
 ["What does this print?","console.log(\"Hi \" + \"there\")",["Hi there","Hithere","Hi + there","Error"],0,"The + sign joins two strings. The space inside \"Hi \" is kept, so you get Hi there."],

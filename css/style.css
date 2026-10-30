@@ -85,3 +85,23 @@ nav button{display:flex;flex-direction:column;align-items:center;font-size:11px;
 nav .on{color:var(--pri)}
 
 .hearts{display:flex;gap:3px;color:var(--bad)}.hearts .e{color:#e3dff5}
+
+/* logo */
+.logo-full{height:44px;width:auto}
+.logo-icon{width:40px;height:40px;flex:none}
+
+/* levels: tier tabs, stage pager, track columns */
+.tiertabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.tt{background:#fff;border-radius:16px;padding:6px 2px;box-shadow:0 3px 0 #e6e3f7;display:flex;flex-direction:column;align-items:center;gap:1px;font-size:11px;font-weight:900;line-height:1.1}
+.tt small{font-size:10px}.tt .tti{width:30px;height:30px;object-fit:contain}
+.tt.on{background:var(--pri);color:#fff;box-shadow:0 3px 0 var(--pd)}.tt.on small{color:#e9e6ff}
+.tt.lkd .tti{filter:grayscale(1);opacity:.45}
+.stagebar{display:flex;align-items:center;gap:8px}.stagebar .back:disabled{opacity:.35}.stagebar .fwd svg{transform:scaleX(-1)}
+.stages{flex:1;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:5px}
+.stages b{width:100%;text-align:center;font-size:13px}
+.sg{width:16px;height:8px;border-radius:6px;background:#e6e3f7}.sg.on{background:var(--pri);width:26px}
+.lvhead{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;text-align:center;font-size:11px;font-weight:900;color:var(--mut)}
+.lvhead span{display:flex;flex-direction:column;align-items:center}.lvhi{width:26px;height:26px;object-fit:contain}
+.lvgrid.locked{opacity:.6}
+.lv{font-size:20px}
+.lv.new.cur{animation:pop .5s;outline:3px solid #ffc08a;outline-offset:2px}
