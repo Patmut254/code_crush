@@ -1,7 +1,7 @@
 /*
   LEVELS-GEN.JS
   -------------
-  Builds 400 levels for every tier (1,600 in all): 8 tracks x 50 levels.
+  Builds 500 levels for every tier (2,000 in all): 10 tracks x 50 levels.
   The first JavaScript, HTML, Logic and Debugging level of each tier are the
   hand-written ones in data.js; the rest come from question generators below.
   Every level is seeded by its id, so a level always has the same questions,
@@ -10,7 +10,7 @@
   A question is [text, code, options, correctIndex, explanation], exactly like
   data.js. The correct option is listed first; app.js shuffles options.
 */
-const PER_TIER = 200; // per block of 4 tracks; each tier has 2 blocks = 400 levels
+const PER_TIER = 200; // levels per tier in the first block (used to map very old saves)
 const TRACK_ORDER = ["js", "web", "logic", "debug"];
 const NEW_TRACKS = ["python", "css", "sql", "php"];
 
@@ -41,7 +41,7 @@ const out = (a) => "[" + a.join(",") + "]"; // how console.log output is written
 const names = ["items", "scores", "prices", "levels", "ages", "points", "steps", "coins"];
 
 /** Build a question; drops duplicate or empty distractors and tops up with `more`. */
-function Q(text, code, correct, wrong, why, more = []) {
+function Q(text, code, correct, wrong, why, more = [], check) {
   const c = String(correct);
   const seen = new Set([c]);
   const opts = [c];
@@ -53,7 +53,7 @@ function Q(text, code, correct, wrong, why, more = []) {
     }
   }
   if (opts.length < 4) return null; // not enough good options; caller tries another generator
-  return [text, code, opts, 0, why];
+  return check ? [text, code, opts, 0, why, check] : [text, code, opts, 0, why];
 }
 
 /** Multiple choice from a pool of [answer, prompt, why?] rows. */
@@ -935,80 +935,726 @@ const PHPG = [
   } },
 ];
 
+/* ---------- Networking ---------- */
+const ipInt = (ip) => ip.split(".").reduce((a, o) => a * 256 + +o, 0);
+const intIp = (n) => [24, 16, 8, 0].map((s) => Math.floor(n / 2 ** s) % 256).join(".");
+const maskInt = (p) => (p === 0 ? 0 : (2 ** 32 - 2 ** (32 - p)));
+const netOf = (ip, p) => intIp(Math.floor(ipInt(ip) / 2 ** (32 - p)) * 2 ** (32 - p));
+const bcastOf = (ip, p) => intIp(ipInt(netOf(ip, p)) + 2 ** (32 - p) - 1);
+const randIp = () => pick([() => `192.168.${ri(0, 255)}.${ri(1, 254)}`, () => `10.${ri(0, 255)}.${ri(0, 255)}.${ri(1, 254)}`, () => `172.${ri(16, 31)}.${ri(0, 255)}.${ri(1, 254)}`])();
+const prefixFor = (d) => (d === 0 ? 24 : d === 1 ? pick([24, 25, 26, 27, 28]) : ri(17, 30));
+const PORTS = [
+  ["22", "SSH"], ["21", "FTP"], ["23", "Telnet"], ["25", "SMTP (sending email)"], ["53", "DNS"], ["67", "DHCP"], ["80", "HTTP"],
+  ["110", "POP3"], ["123", "NTP (time sync)"], ["143", "IMAP"], ["161", "SNMP"], ["443", "HTTPS"], ["3306", "MySQL"],
+  ["5432", "PostgreSQL"], ["3389", "Remote Desktop (RDP)"], ["6379", "Redis"], ["27017", "MongoDB"], ["389", "LDAP"],
+  ["445", "SMB file sharing"], ["69", "TFTP"], ["1433", "Microsoft SQL Server"], ["5900", "VNC"],
+];
+const OSI = ["Layer 1 – Physical", "Layer 2 – Data Link", "Layer 3 – Network", "Layer 4 – Transport", "Layer 5 – Session", "Layer 6 – Presentation", "Layer 7 – Application"];
+const OSI_ITEMS = [
+  ["a network cable", 1], ["a hub", 1], ["radio signals in Wi-Fi", 1], ["a switch", 2], ["MAC addresses", 2], ["Ethernet frames", 2],
+  ["ARP", 2], ["a network card (NIC)", 2], ["a router", 3], ["IP addresses", 3], ["ICMP (ping)", 3], ["packets", 3],
+  ["TCP", 4], ["UDP", 4], ["port numbers", 4], ["segments", 4], ["HTTP", 7], ["DNS", 7], ["SMTP", 7], ["FTP", 7], ["SSH", 7],
+  ["encryption and data formats like JPEG", 6], ["opening and closing sessions between apps", 5],
+];
+const NET_FACTS = [
+  ["DNS", "turns a name like example.com into an IP address"], ["DHCP", "hands out IP addresses to devices automatically"],
+  ["NAT", "lets many private devices share one public IP address"], ["ARP", "finds the MAC address that belongs to an IP address"],
+  ["A VLAN", "splits one physical switch into separate logical networks"], ["A VPN", "creates an encrypted tunnel over the internet"],
+  ["A default gateway", "is the router a device sends traffic to when the destination is on another network"],
+  ["A MAC address", "is the hardware address burned into a network card"], ["Latency", "is the delay before data arrives"],
+  ["Bandwidth", "is the maximum amount of data a link can carry per second"], ["Packet loss", "is data that never reaches its destination"],
+  ["TTL", "limits how many hops a packet can make before it is dropped"], ["A CDN", "serves copies of content from servers close to the user"],
+  ["A load balancer", "spreads traffic across several servers"], ["A proxy server", "makes requests on behalf of a client"],
+  ["A firewall", "allows or blocks traffic based on rules"], ["TLS", "encrypts data travelling between a browser and a server"],
+  ["A subnet", "is a smaller network carved out of a bigger one"], ["Broadcast", "sends one message to every device on the network"],
+  ["Multicast", "sends one message to a chosen group of devices"], ["Unicast", "sends a message to exactly one device"],
+  ["A LAN", "covers a home, office or building"], ["A WAN", "connects networks across cities or countries"],
+  ["A star topology", "connects every device to one central switch"], ["A mesh topology", "connects devices to many others for redundancy"],
+  ["A switch", "forwards frames to the right port using MAC addresses"], ["A router", "forwards packets between different networks"],
+  ["An access point", "lets wireless devices join a wired network"], ["Jitter", "is the variation in delay between packets"],
+  ["Port forwarding", "sends traffic arriving on a router port to a device inside the network"], ["QoS", "gives important traffic, like calls, priority"],
+  ["IPv6", "uses 128-bit addresses"], ["IPv4", "uses 32-bit addresses"], ["SSID", "is the name of a Wi-Fi network"],
+  ["WPA3", "is the newest Wi-Fi security standard"], ["Loopback 127.0.0.1", "always points back to your own computer"],
+];
+const DNS_RECORDS = [["A", "maps a name to an IPv4 address"], ["AAAA", "maps a name to an IPv6 address"], ["CNAME", "points one name at another name"],
+  ["MX", "says which server receives email for the domain"], ["TXT", "holds text, often used to verify domain ownership"], ["NS", "names the domain's DNS servers"], ["PTR", "maps an IP address back to a name"]];
+const NET_CMDS = [["ping", "check whether a host is reachable"], ["traceroute", "see every hop a packet takes to reach a host"],
+  ["nslookup", "look up the IP address of a domain name"], ["ipconfig / ifconfig", "show your computer's IP settings"],
+  ["netstat", "list open connections and listening ports"], ["ssh", "log in to a remote machine securely"], ["curl", "send an HTTP request from the terminal"],
+  ["arp -a", "show the IP-to-MAC table your computer has learned"]];
+const TCP_UDP = [["TCP", "guarantees delivery and order"], ["UDP", "is faster but may lose packets"], ["TCP", "starts with a three-way handshake"],
+  ["UDP", "suits live video calls and online games"], ["TCP", "is used by HTTP, SSH and email"], ["UDP", "is used by DNS lookups and DHCP"],
+  ["TCP", "resends data that goes missing"], ["UDP", "sends data without setting up a connection first"]];
+const NETG = [
+  (d) => {
+    const ip = randIp(), p = prefixFor(d), net = netOf(ip, p), size = 2 ** (32 - p);
+    return Q(`What is the network address of ${ip}/${p}?`, "", net,
+      [intIp(ipInt(net) + size), ip, bcastOf(ip, p), ip.split(".").slice(0, 3).join(".") + ".0"],
+      `A /${p} block holds ${size} addresses. Round ${ip} down to the start of its block: ${net}.`, [], { net: [ip, p, "network"] });
+  },
+  (d) => {
+    const ip = randIp(), p = prefixFor(d), b = bcastOf(ip, p);
+    return Q(`What is the broadcast address of ${ip}/${p}?`, "", b,
+      [netOf(ip, p), intIp(ipInt(b) - 1), ip.split(".").slice(0, 3).join(".") + ".255", intIp(ipInt(b) + 1)],
+      `The broadcast is the last address in the block: ${netOf(ip, p)} + ${2 ** (32 - p) - 1}.`, [], { net: [ip, p, "broadcast"] });
+  },
+  (d) => {
+    const p = d === 0 ? pick([8, 16, 24]) : ri(16, 30), h = 2 ** (32 - p) - 2;
+    return Q(`How many usable host addresses does a /${p} network have?`, "", h.toLocaleString("en-US"),
+      [(h + 2).toLocaleString("en-US"), (h / 2 - 1).toLocaleString("en-US"), (2 * h + 2).toLocaleString("en-US"), (32 - p).toString()],
+      `2 to the power ${32 - p} = ${(h + 2).toLocaleString("en-US")} addresses, minus the network and broadcast addresses.`, [], { hosts: p });
+  },
+  (d) => {
+    const p = d === 0 ? pick([8, 16, 24]) : ri(16, 30), m = intIp(maskInt(p));
+    return R() < 0.5
+      ? Q(`Which subnet mask matches /${p}?`, "", m, [intIp(maskInt(p + 1 > 32 ? p - 2 : p + 1)), intIp(maskInt(p - 1)), intIp(maskInt(p - 8 < 1 ? p + 2 : p - 8))], `/${p} means the first ${p} bits are 1s: ${m}.`, [], { mask: p })
+      : Q(`The subnet mask ${m} is the same as which prefix?`, "", `/${p}`, [`/${p + 1 > 32 ? p - 2 : p + 1}`, `/${p - 1}`, `/${32 - p}`, `/${p + 2 > 32 ? p - 3 : p + 2}`], `Count the 1 bits in ${m}: there are ${p}.`, [], { mask: p });
+  },
+  (d) => {
+    const ip = randIp(), p = d === 0 ? 24 : ri(24, 29), size = 2 ** (32 - p), net = ipInt(netOf(ip, p));
+    const pickIn = (base) => intIp(base + ri(1, size - 2));
+    const same = pickIn(net);
+    const others = [pickIn(net + size), pickIn(net - size), pickIn(net + 2 * size)];
+    return Q(`Which address is in the same /${p} subnet as ${ip}?`, "", same, others,
+      `${ip}/${p} covers ${intIp(net)} to ${intIp(net + size - 1)}.`, [], { same: [ip, p, same, others] });
+  },
+  (d) => {
+    const need = ri(3, d === 0 ? 60 : 2000);
+    let p = 30;
+    while (2 ** (32 - p) - 2 < need) p--;
+    return Q(`You need ${need} usable addresses in one subnet. What is the smallest subnet that fits?`, "", `/${p}`, [`/${p + 1}`, `/${p - 1}`, `/${p + 2}`],
+      `/${p} gives ${2 ** (32 - p) - 2} usable hosts, and /${p + 1} gives only ${2 ** (31 - p) - 2}.`);
+  },
+  () => {
+    const priv = randIp();
+    const pub = () => `${pick([8, 23, 34, 41, 52, 66, 81, 104, 142, 151, 185, 203])}.${ri(0, 255)}.${ri(0, 255)}.${ri(1, 254)}`;
+    const trick = pick([`172.${pick([15, 32, 40])}.${ri(0, 255)}.${ri(1, 254)}`, `192.169.${ri(0, 255)}.${ri(1, 254)}`, `11.${ri(0, 255)}.${ri(0, 255)}.${ri(1, 254)}`]);
+    return Q("Which IP address is private?", "", priv, [pub(), pub(), trick],
+      "Private ranges are 10.0.0.0/8, 172.16.0.0/12 (172.16 to 172.31) and 192.168.0.0/16.", [], { priv: [priv, trick] });
+  },
+  () => {
+    const o = [ri(1, 126), ri(128, 191), ri(192, 223), ri(224, 239)];
+    const i = ri(0, 3), cls = ["A", "B", "C", "D (multicast)"];
+    return Q(`An address starts with ${o[i]}. Which classful range is it in?`, "", `Class ${cls[i]}`, cls.filter((_, j) => j !== i).map((c) => `Class ${c}`),
+      "Class A starts 1–126, B 128–191, C 192–223, D 224–239.");
+  },
+  () => {
+    const n = ri(1, 255), b = n.toString(2).padStart(8, "0");
+    return R() < 0.5
+      ? Q(`An IP octet is ${b} in binary. What is it in decimal?`, "", n, [n ^ 1 || 2, n ^ 128, parseInt([...b].reverse().join(""), 2)], `Add the place values of the 1 bits: ${n}.`)
+      : Q(`How is the octet ${n} written in binary?`, "", b, [(n ^ 1).toString(2).padStart(8, "0"), (n ^ 64).toString(2).padStart(8, "0"), [...b].reverse().join("")], `${n} in 8 bits is ${b}.`);
+  },
+  () => {
+    const [port, svc] = pick(PORTS);
+    const others = shuf(PORTS.filter((r) => r[0] !== port)).slice(0, 3);
+    return R() < 0.5
+      ? Q(`Which service uses port ${port} by default?`, "", svc, others.map((r) => r[1]), `Port ${port} is ${svc}.`)
+      : Q(`Which port does ${svc} use by default?`, "", port, others.map((r) => r[0]), `${svc} listens on port ${port}.`);
+  },
+  () => {
+    const [item, layer] = pick(OSI_ITEMS);
+    return Q(`In the OSI model, where does ${item} belong?`, "", OSI[layer - 1], shuf(OSI.filter((_, i) => i !== layer - 1)).slice(0, 3), `${item.charAt(0).toUpperCase() + item.slice(1)} works at ${OSI[layer - 1]}.`);
+  },
+  () => {
+    const n = ri(1, 7), name = OSI[n - 1].split("– ")[1];
+    return Q(`Which OSI layer is number ${n}?`, "", name, shuf(OSI.filter((_, i) => i !== n - 1)).slice(0, 3).map((x) => x.split("– ")[1]), `From the bottom: Physical, Data Link, Network, Transport, Session, Presentation, Application.`);
+  },
+  () => {
+    const [name, does] = pick(NET_FACTS);
+    const others = shuf(NET_FACTS.filter((r) => r[0] !== name)).slice(0, 3);
+    return R() < 0.5
+      ? Q(`What ${does}?`, "", name, others.map((r) => r[0]), `${name} ${does}.`)
+      : Q(`What does ${name.replace(/^(A|An) /, "a ")} do?`, "", does.charAt(0).toUpperCase() + does.slice(1), others.map((r) => r[1].charAt(0).toUpperCase() + r[1].slice(1)), `${name} ${does}.`);
+  },
+  () => {
+    const [t, does] = pick(DNS_RECORDS);
+    return Q(`Which DNS record ${does}?`, "", t, shuf(DNS_RECORDS.filter((r) => r[0] !== t)).slice(0, 3).map((r) => r[0]), `An ${t} record ${does}.`);
+  },
+  () => {
+    const [cmd, does] = pick(NET_CMDS);
+    return Q(`Which command would you use to ${does}?`, "", cmd, shuf(NET_CMDS.filter((r) => r[0] !== cmd)).slice(0, 3).map((r) => r[0]), `${cmd} lets you ${does}.`);
+  },
+  () => {
+    const [proto, fact] = pick(TCP_UDP);
+    return Q(`Which protocol ${fact}?`, "", proto, [proto === "TCP" ? "UDP" : "TCP", "ICMP", "ARP"], `${proto} ${fact}.`);
+  },
+  (d) => {
+    const speed = pick([8, 10, 16, 20, 40, 50, 80, 100]), t = ri(2, 30), mb = (speed * t) / 8;
+    if (!Number.isInteger(mb)) return null;
+    return Q(`How long does a ${mb} MB file take to download at ${speed} Mbps (ignoring overhead)?`, "", `${t} seconds`,
+      [`${t * 8} seconds`, `${Math.max(1, Math.round(t / 8))} second${Math.round(t / 8) === 1 ? "" : "s"}`, `${t * 2} seconds`],
+      `Megabytes are 8 times bigger than megabits: ${mb} × 8 = ${mb * 8} megabits, ÷ ${speed} = ${t} seconds.`);
+  },
+  { min: 1, f: () => {
+    const forms = [
+      ["What is the order of the TCP three-way handshake?", "SYN → SYN-ACK → ACK", ["ACK → SYN → FIN", "SYN → ACK → SYN-ACK", "HELLO → OK → START"], "The client sends SYN, the server replies SYN-ACK, and the client confirms with ACK."],
+      ["What happens when a packet's TTL reaches 0?", "The router drops it", ["It is sent to the gateway", "It is retried forever", "It becomes a broadcast"], "TTL stops packets looping forever. traceroute uses this on purpose."],
+      ["Why does HTTPS need a certificate?", "To prove the server really owns the domain", ["To make pages load faster", "To compress the page", "To give the site an IP address"], "The certificate lets the browser check the server's identity before encrypting."],
+      ["Two devices on the same switch can ping each other but not the internet. What is most likely wrong?", "The default gateway setting", ["The MAC addresses", "The network cable", "The HTML of the website"], "Local traffic works, so only the route out of the network is broken."],
+      ["Which address range does a device give itself when DHCP fails?", "169.254.x.x", ["127.0.0.x", "192.168.0.x", "10.0.0.x"], "169.254.0.0/16 is the link-local range used when no DHCP server answers."],
+    ];
+    const [t, a, w, why] = pick(forms);
+    return Q(t, "", a, w, why);
+  } },
+  { min: 2, f: () => {
+    const g = Array.from({ length: 8 }, () => (R() < 0.45 ? 0 : ri(1, 65535)));
+    const s = ri(1, 4), len = ri(2, 4);
+    for (let i = s; i < Math.min(8, s + len); i++) g[i] = 0;
+    g[0] = 0x2001;
+    const full = g.map((x) => x.toString(16).padStart(4, "0")).join(":");
+    const short = g.map((x) => x.toString(16));
+    let best = -1, bestLen = 1;
+    for (let i = 0; i < 8; ) {
+      if (g[i] !== 0) { i++; continue; }
+      let j = i; while (j < 8 && g[j] === 0) j++;
+      if (j - i > bestLen) { best = i; bestLen = j - i; }
+      i = j;
+    }
+    const comp = best < 0 ? short.join(":") : short.slice(0, best).join(":") + "::" + short.slice(best + bestLen).join(":");
+    const noStrip = best < 0 ? full : full.split(":").slice(0, best).join(":") + "::" + full.split(":").slice(best + bestLen).join(":");
+    const allZerosGone = short.filter((x) => x !== "0").join(":");
+    return Q(`What is the shortest correct way to write ${full}?`, "", comp, [noStrip, allZerosGone, comp.replace("::", ":0:")],
+      "Drop leading zeros in each group, then replace the longest run of all-zero groups with :: (only once).", [], { v6: [full, comp] });
+  } },
+];
+
+/* ---------- Interview Prep ---------- */
+const BIG_O_SNIPPETS = [
+  ["for (let i = 0; i < n; i++) {\n  total += arr[i];\n}", "O(n)", "One loop over n items."],
+  ["for (let i = 0; i < n; i++) {\n  for (let j = 0; j < n; j++) {\n    count++;\n  }\n}", "O(n²)", "A loop inside a loop, both over n."],
+  ["let i = n;\nwhile (i > 1) {\n  i = Math.floor(i / 2);\n}", "O(log n)", "i halves each time."],
+  ["for (let i = 0; i < n; i++) {\n  let j = n;\n  while (j > 1) j = Math.floor(j / 2);\n}", "O(n log n)", "n passes, each halving: n × log n."],
+  ["return arr[0] + arr[arr.length - 1];", "O(1)", "Two lookups, no matter how big the array is."],
+  ["for (let i = 0; i < n; i++) a++;\nfor (let j = 0; j < n; j++) b++;", "O(n)", "Two loops one after another is 2n, which is still O(n)."],
+  ["for (let i = 0; i < n; i++)\n  for (let j = 0; j < n; j++)\n    for (let k = 0; k < n; k++) x++;", "O(n³)", "Three nested loops over n."],
+  ["for (let i = 1; i * i <= n; i++) {\n  count++;\n}", "O(√n)", "The loop stops when i reaches the square root of n."],
+  ["for (let i = 0; i < n; i++) {\n  for (let j = i; j < n; j++) {\n    pairs++;\n  }\n}", "O(n²)", "About n²/2 steps, and constants are dropped."],
+  ["function fib(n) {\n  if (n < 2) return n;\n  return fib(n - 1) + fib(n - 2);\n}", "O(2ⁿ)", "Each call makes two more calls."],
+  ["for (let i = 0; i < 100; i++) {\n  sum += i;\n}", "O(1)", "The loop always runs 100 times, whatever n is."],
+  ["const seen = new Set(arr);\nreturn seen.has(target);", "O(n)", "Building the set touches every item once; the lookup is O(1)."],
+];
+const DS_OPS = [
+  ["Reading arr[i] from an array", "O(1)"], ["Searching an unsorted array", "O(n)"], ["Looking up a key in a hash map (average)", "O(1)"],
+  ["Searching a balanced binary search tree", "O(log n)"], ["Inserting into a binary heap", "O(log n)"], ["Adding to the front of a linked list", "O(1)"],
+  ["Finding an item in a linked list", "O(n)"], ["Push or pop on a stack", "O(1)"], ["Inserting at the start of an array", "O(n)"],
+  ["Sorting with merge sort", "O(n log n)"], ["Binary search in a sorted array", "O(log n)"], ["Getting the minimum from a min-heap", "O(1)"],
+];
+const DS_FOR = [
+  ["Hash map", "counting how often each word appears"], ["Stack", "undo and redo in a text editor"], ["Queue", "handling print jobs in order"],
+  ["Heap (priority queue)", "always getting the most urgent task next"], ["Graph", "finding routes between cities"], ["Trie", "autocomplete for search boxes"],
+  ["Set", "removing duplicates from a list"], ["Linked list", "inserting and removing items in the middle often"], ["Binary search tree", "keeping data sorted with fast lookups"],
+  ["Array", "fast access to the 10th, 100th or 1000th item"], ["Stack", "checking that brackets are balanced"], ["Queue", "breadth-first search"],
+];
+const CONCEPTS = [
+  // OOP
+  ["Encapsulation", "Which OOP idea means hiding an object's data behind its methods?"], ["Inheritance", "Which OOP idea lets a class reuse another class's code?"],
+  ["Polymorphism", "Which OOP idea lets different classes respond to the same method in their own way?"], ["Abstraction", "Which OOP idea means showing only what matters and hiding the details?"],
+  ["Single responsibility", "In SOLID, what does the S stand for?"], ["Open/closed", "In SOLID, what does the O stand for?"], ["Liskov substitution", "In SOLID, what does the L stand for?"],
+  ["Interface segregation", "In SOLID, what does the I stand for?"], ["Dependency inversion", "In SOLID, what does the D stand for?"],
+  ["Composition", "What is it called when a class is built from other objects instead of inheriting from them?"],
+  // Git
+  ["git clone", "Which command copies a remote repository to your computer?"], ["git commit", "Which command saves staged changes as a snapshot?"],
+  ["git push", "Which command uploads your commits to the remote?"], ["git pull", "Which command fetches and merges remote changes?"],
+  ["git fetch", "Which command downloads remote changes without merging them?"], ["git stash", "Which command shelves uncommitted changes for later?"],
+  ["git rebase", "Which command replays your commits on top of another branch?"], ["git revert", "Which command undoes a commit by making a new commit?"],
+  ["git cherry-pick", "Which command copies one specific commit onto your branch?"], ["git bisect", "Which command finds the commit that introduced a bug by binary search?"],
+  ["git diff", "Which command shows what changed in your files?"], ["git log", "Which command shows the commit history?"],
+  // APIs and the web
+  ["GET", "Which HTTP method reads data without changing it?"], ["POST", "Which HTTP method usually creates a new resource?"], ["PUT", "Which HTTP method replaces a whole resource?"],
+  ["PATCH", "Which HTTP method updates part of a resource?"], ["DELETE", "Which HTTP method removes a resource?"],
+  ["Idempotent", "What do you call a request that has the same effect however many times it is sent?"],
+  ["REST", "Which API style uses URLs for resources and HTTP methods for actions?"], ["GraphQL", "Which API style lets the client ask for exactly the fields it needs?"],
+  ["JWT", "Which signed token format is often used for stateless login?"], ["OAuth", "Which standard lets an app act for a user without seeing their password?"],
+  ["CORS", "Which browser rule controls which other sites can call your API?"], ["XSS", "Which attack injects script into a page other users will see?"],
+  ["CSRF", "Which attack tricks a logged-in user's browser into sending a request?"], ["SQL injection", "Which attack slips SQL into user input?"],
+  ["Rate limiting", "What stops one client from sending too many requests?"], ["Webhook", "What is it called when a service calls your URL when an event happens?"],
+  // System design
+  ["Caching", "What keeps frequently used data in fast memory to avoid repeated work?"], ["Horizontal scaling", "What is it called when you add more servers to handle load?"],
+  ["Vertical scaling", "What is it called when you give one server more CPU and memory?"], ["Sharding", "What splits a large database across several machines?"],
+  ["Replication", "What keeps copies of the same data on several machines?"], ["Message queue", "What lets services hand off work to be processed later?"],
+  ["CAP theorem", "Which idea says a distributed system cannot guarantee consistency, availability and partition tolerance all at once?"],
+  ["Eventual consistency", "What is it called when replicas may disagree briefly but end up the same?"], ["Microservices", "Which architecture splits an app into small independent services?"],
+  ["Monolith", "What do you call an app built and deployed as one single unit?"], ["Single point of failure", "What is a part whose failure takes the whole system down?"],
+  // Databases
+  ["Atomicity", "In ACID, what does the A stand for?"], ["Consistency", "In ACID, what does the C stand for?"], ["Isolation", "In ACID, what does the I stand for?"], ["Durability", "In ACID, what does the D stand for?"],
+  ["An index", "What makes reads on a column faster but writes slightly slower?"], ["Normalization", "What reduces repeated data by splitting tables?"],
+  ["NoSQL", "Which kind of database stores flexible documents or key-value pairs instead of fixed tables?"],
+  // Testing and process
+  ["Unit test", "Which test checks one small function on its own?"], ["Integration test", "Which test checks that several parts work together?"],
+  ["End-to-end test", "Which test clicks through the app like a real user?"], ["Mocking", "What replaces a real dependency with a fake one in a test?"],
+  ["TDD", "What is it called when you write the failing test before the code?"], ["Code review", "What is it called when teammates read your changes before they are merged?"],
+  ["CI/CD", "What automatically tests and deploys code on every change?"], ["Technical debt", "What do you call shortcuts in code that will cost time to fix later?"],
+  // Runtime
+  ["A thread", "What is the smallest unit of work a CPU schedules inside a process?"], ["A deadlock", "What happens when two tasks each wait for the other forever?"],
+  ["A race condition", "What bug depends on the timing of two operations?"], ["Garbage collection", "What automatically frees memory that is no longer used?"],
+  ["Recursion", "What is it called when a function calls itself?"], ["Memoization", "What is it called when you cache a function's results to avoid recomputing them?"],
+];
+const treeOrders = (t) => {
+  const pre = [], ino = [], post = [];
+  const walk = (i) => { if (i >= t.length || t[i] == null) return; pre.push(t[i]); walk(2 * i + 1); ino.push(t[i]); walk(2 * i + 2); post.push(t[i]); };
+  walk(0);
+  return { bfs: t.filter((x) => x != null), pre, ino, post };
+};
+const INTERVIEW = [
+  (d) => {
+    const ops = [], st = [];
+    const n = ri(4, 6 + d);
+    for (let i = 0; i < n; i++) {
+      if (st.length && R() < 0.35) { st.pop(); ops.push("stack.pop();"); } else { const v = ri(1, 30); st.push(v); ops.push(`stack.push(${v});`); }
+    }
+    if (!st.length) { const v = ri(1, 30); st.push(v); ops.push(`stack.push(${v});`); }
+    return Q(PRINT, `const stack = [];\n${ops.join("\n")}\nconsole.log(stack[stack.length - 1]);`, st[st.length - 1],
+      [st[0], st.length > 1 ? st[st.length - 2] : "undefined", st.length], "A stack is last in, first out: the top is the most recent push that was not popped.", ["undefined"]);
+  },
+  (d) => {
+    const ops = [], q = [];
+    const n = ri(4, 6 + d);
+    for (let i = 0; i < n; i++) {
+      if (q.length > 1 && R() < 0.35) { q.shift(); ops.push("queue.shift();"); } else { const v = ri(1, 30); q.push(v); ops.push(`queue.push(${v});`); }
+    }
+    return Q(PRINT, `const queue = [];\n${ops.join("\n")}\nconsole.log(queue[0]);`, q[0],
+      [q[q.length - 1], q.length > 1 ? q[1] : "undefined", q.length], "A queue is first in, first out: shift removes from the front.", ["undefined"]);
+  },
+  () => {
+    const [code, o, why] = pick(BIG_O_SNIPPETS);
+    return Q("What is the time complexity?", code, o, shuf(["O(1)", "O(log n)", "O(n)", "O(n log n)", "O(n²)", "O(n³)", "O(2ⁿ)", "O(√n)"].filter((x) => x !== o)).slice(0, 3), why);
+  },
+  () => fromPool(DS_OPS.map(([op, o]) => [o, op]), (r) => `What is the time complexity of: ${r[1].charAt(0).toLowerCase() + r[1].slice(1)}?`, (r) => `${r[1]} is ${r[0]}.`),
+  () => {
+    const [ds, use] = pick(DS_FOR);
+    return Q(`Which data structure fits best for ${use}?`, "", ds, shuf([...new Set(DS_FOR.map((r) => r[0]))].filter((x) => x !== ds)).slice(0, 3), `A ${ds.toLowerCase()} is the natural fit for ${use}.`);
+  },
+  () => fromPool(CONCEPTS, (r) => r[1], (r) => `${r[0]}.`),
+  (d) => {
+    const n = ri(8, 12 + d * 6), a = [...new Set(nums(n, 1, 99))].sort((x, y) => x - y);
+    const target = pick(a);
+    let lo = 0, hi = a.length - 1, steps = 0, path = [];
+    while (lo <= hi) { const mid = Math.floor((lo + hi) / 2); steps++; path.push(a[mid]); if (a[mid] === target) break; if (a[mid] < target) lo = mid + 1; else hi = mid - 1; }
+    return R() < 0.5
+      ? Q(`Binary search for ${target} in this sorted array. Which value is checked first?`, arr(a), a[Math.floor((a.length - 1) / 2)], [a[0], a[a.length - 1], target === a[Math.floor((a.length - 1) / 2)] ? a[1] : target], "Binary search starts in the middle: index floor((0 + last) / 2).", [], { bs: [a, target] })
+      : Q(`Binary search for ${target} in this sorted array. How many values are checked before it is found?`, arr(a), steps, [steps + 1, a.indexOf(target) + 1 === steps ? steps + 2 : a.indexOf(target) + 1, a.length], `It checks ${path.join(", ")}.`, [1], { bs: [a, target] });
+  },
+  (d) => {
+    const a = shuf(nums(ri(5, 6), 1, 50));
+    if (new Set(a).size !== a.length) return null;
+    const b = [...a];
+    for (let i = 0; i < b.length - 1; i++) if (b[i] > b[i + 1]) [b[i], b[i + 1]] = [b[i + 1], b[i]];
+    const sorted = [...a].sort((x, y) => x - y);
+    return Q("What does the array look like after ONE pass of bubble sort (ascending)?", arr(a), arr(b), [arr(sorted), arr(a), arr([...b].reverse())],
+      "One pass compares neighbours left to right and swaps them if out of order, which carries the biggest value to the end.", [], { bubble: [a, b] });
+  },
+  (d) => {
+    const a = shuf(nums(ri(5, 6), 1, 50));
+    if (new Set(a).size !== a.length) return null;
+    const b = [...a], m = b.indexOf(Math.min(...b));
+    [b[0], b[m]] = [b[m], b[0]];
+    return Q("What does the array look like after the FIRST pass of selection sort (ascending)?", arr(a), arr(b), [arr([...a].sort((x, y) => x - y)), arr(a), arr([Math.min(...a), ...a.filter((x) => x !== Math.min(...a))])],
+      "Selection sort finds the smallest value and swaps it into position 0.", [], { select: [a, b] });
+  },
+  (d) => {
+    const n = ri(3, 6 + d);
+    const forms = [
+      [`function fact(n) {\n  return n <= 1 ? 1 : n * fact(n - 1);\n}\nconsole.log(fact(${n}))`, (() => { let f = 1; for (let i = 2; i <= n; i++) f *= i; return f; })(), "fact multiplies n by every number below it."],
+      [`function fib(n) {\n  return n < 2 ? n : fib(n - 1) + fib(n - 2);\n}\nconsole.log(fib(${n + 2}))`, (() => { let a = 0, b = 1; for (let i = 0; i < n + 2; i++) [a, b] = [b, a + b]; return a; })(), "Each Fibonacci number is the sum of the two before it, starting 0, 1."],
+      [`function sumTo(n) {\n  if (n === 0) return 0;\n  return n + sumTo(n - 1);\n}\nconsole.log(sumTo(${n + 3}))`, ((n + 3) * (n + 4)) / 2, "sumTo adds n, n-1, … down to 0."],
+      [`function power(b, e) {\n  return e === 0 ? 1 : b * power(b, e - 1);\n}\nconsole.log(power(2, ${n + 1}))`, 2 ** (n + 1), "Each call multiplies by 2 until e reaches 0."],
+    ];
+    const [code, ans, why] = pick(forms);
+    return Q(PRINT, code, ans, [ans + 1, ans * 2, ans - n], why);
+  },
+  (d) => {
+    const a = nums(ri(5, 7), 1, 20);
+    const i = ri(0, a.length - 2), j = ri(i + 1, a.length - 1), target = a[i] + a[j];
+    const pairs = [];
+    for (let x = 0; x < a.length; x++) for (let y = x + 1; y < a.length; y++) if (a[x] + a[y] === target) pairs.push([x, y]);
+    if (pairs.length !== 1) return null;
+    const wrong = [];
+    for (let x = 0; x < a.length && wrong.length < 6; x++) for (let y = x + 1; y < a.length; y++) if (a[x] + a[y] !== target) wrong.push(`[${x}, ${y}]`);
+    return Q(`Two Sum: which pair of indexes adds up to ${target}?`, arr(a), `[${i}, ${j}]`, shuf(wrong).slice(0, 3), `a[${i}] + a[${j}] = ${a[i]} + ${a[j]} = ${target}. Indexes start at 0.`);
+  },
+  () => {
+    const n = ri(5, 9), miss = ri(1, n);
+    const a = shuf(Array.from({ length: n }, (_, i) => i + 1).filter((x) => x !== miss));
+    return Q(`This array should hold every number from 1 to ${n}. Which one is missing?`, arr(a), miss, [miss === n ? 1 : miss + 1, miss === 1 ? n : miss - 1, n + 1],
+      `A quick trick: ${n} × ${n + 1} / 2 = ${(n * (n + 1)) / 2}, minus the sum of the array gives ${miss}.`);
+  },
+  (d) => {
+    const len = ri(5, 7), t = Array.from({ length: len }, () => ri(1, 30));
+    if (new Set(t).size !== len) return null;
+    const o = treeOrders(t), kind = pick(d === 0 ? ["bfs", "pre"] : ["bfs", "pre", "ino", "post"]);
+    const label = { bfs: "level-order (BFS)", pre: "pre-order (root, left, right)", ino: "in-order (left, root, right)", post: "post-order (left, right, root)" };
+    const others = ["bfs", "pre", "ino", "post"].filter((k) => k !== kind && o[k].join() !== o[kind].join()).map((k) => o[k].join(", "));
+    return Q(`This binary tree is stored as an array (children of index i are at 2i+1 and 2i+2). What is its ${label[kind]} traversal?`, arr(t), o[kind].join(", "),
+      others, `${label[kind].charAt(0).toUpperCase() + label[kind].slice(1)} visits: ${o[kind].join(", ")}.`, [[...o[kind]].reverse().join(", ")], { tree: [t, kind] });
+  },
+  () => {
+    const pairsOk = ["()", "[]", "{}"];
+    const build = (depth) => (depth === 0 ? "" : pick(pairsOk).split("").join(build(depth - 1)) + (R() < 0.4 ? build(depth - 1) : ""));
+    let good = build(ri(2, 3));
+    if (good.length < 4 || good.length > 12) good = "({[]})";
+    const bads = [good.slice(0, -1) + (good.endsWith(")") ? "]" : ")"), good.replace("(", "[").replace(")", "}") === good ? good + "(" : good.replace("(", "["), ")" + good.slice(1) + "("];
+    return Q("Which string of brackets is balanced?", "", good, bads, "Every opening bracket must close with the same type, in reverse order. A stack checks this in O(n).", [], { brackets: [good, bads] });
+  },
+  (d) => {
+    const a = Array.from({ length: ri(6, 8) }, () => ri(-9, 9));
+    let best = -Infinity, cur = 0;
+    for (const x of a) { cur = Math.max(x, cur + x); best = Math.max(best, cur); }
+    const total = a.reduce((s, x) => s + x, 0), maxEl = Math.max(...a);
+    return Q("Maximum subarray: what is the largest sum of any run of neighbouring items?", arr(a), best, [total, maxEl === best ? best - 1 : maxEl, best + 2],
+      "Kadane's algorithm keeps a running sum and resets it when starting fresh is better. O(n).");
+  },
+  () => {
+    const w = pick(VOCAB[0].filter((r) => r[0].length >= 4))[0].toLowerCase() + pick(["", "s", "er"]);
+    const counts = {};
+    for (const c of w) counts[c] = (counts[c] || 0) + 1;
+    const max = Math.max(...Object.values(counts)), top = Object.keys(counts).filter((c) => counts[c] === max);
+    if (top.length !== 1 || max < 2) return null;
+    return Q(`Which character appears most often in "${w}"?`, "", top[0], shuf(Object.keys(counts).filter((c) => c !== top[0])).slice(0, 3),
+      "Count characters with a hash map in one pass, then pick the biggest count. O(n).");
+  },
+  () => {
+    const palins = ["level", "radar", "civic", "refer", "kayak", "rotor", "madam", "noon", "racecar", "stats", "deified", "reviver"];
+    const p = pick(palins);
+    const others = shuf(VOCAB[0].map((r) => r[0].toLowerCase()).filter((w) => w.length >= 4 && w !== [...w].reverse().join(""))).slice(0, 3);
+    return Q("Which word is a palindrome?", "", p, others, "A palindrome reads the same backwards. Check it with two pointers moving inward.");
+  },
+];
+
+/* ---------- extra question types (variety for HTML, CSS, Debugging, Logic, PHP) ---------- */
+const WORDS = () => pick(VOCAB[0])[0].toLowerCase();
+const HEX = ["00", "33", "66", "80", "99", "CC", "FF"];
+const NAMED = [["#FF0000", "red"], ["#008000", "green"], ["#0000FF", "blue"], ["#FFA500", "orange"], ["#800080", "purple"], ["#FFFF00", "yellow"]];
+const ENTITIES = [["&lt;", "<"], ["&gt;", ">"], ["&amp;", "&"], ["&quot;", '"'], ["&copy;", "©"], ["&nbsp;", "a non-breaking space"]];
+const SELF_CLOSING = ["<img>", "<br>", "<input>", "<hr>", "<meta>", "<link>"];
+const NEEDS_CLOSE = ["<div>", "<p>", "<span>", "<ul>", "<a>", "<section>", "<button>", "<h2>"];
+
+WEB.push(
+  () => {
+    const text = WORDS(), href = "/" + WORDS();
+    return R() < 0.5
+      ? Q("What text does the user see for this link?", `<a href="${href}">${text}</a>`, text, [href, `a ${text}`, "Nothing"], "The text between the tags is what shows on the page; href is where it goes.")
+      : Q("Where does this link go when clicked?", `<a href="${href}">${text}</a>`, href, [text, `/${text}`, "Nowhere"], "href holds the destination.");
+  },
+  () => {
+    const rows = ri(2, 5), cols = ri(2, 4);
+    const body = Array.from({ length: rows }, () => "  <tr>" + Array.from({ length: cols }, () => `<td>${ri(1, 99)}</td>`).join("") + "</tr>").join("\n");
+    return R() < 0.5
+      ? Q("How many rows does this table have?", `<table>\n${body}\n</table>`, rows, [cols, rows * cols, rows + 1], "Each <tr> is one row.")
+      : Q("How many cells does this table have?", `<table>\n${body}\n</table>`, rows * cols, [rows, cols, rows + cols], `${rows} rows × ${cols} cells each = ${rows * cols}.`);
+  },
+  () => {
+    const n = ri(1, 4), m = ri(1, 3);
+    const parts = shuf([...Array(n).fill(0).map(() => `  <a href="/${WORDS()}">${WORDS()}</a>`), ...Array(m).fill(0).map(() => `  <p>${WORDS()}</p>`)]);
+    return Q("How many links are in this snippet?", `<nav>\n${parts.join("\n")}\n</nav>`, n, [n + m, m, n + 1], "Only <a> elements are links.", [0]);
+  },
+  () => {
+    const cls = shuf(["card", "big", "red", "active", "shadow", "round", "dark"]).slice(0, ri(1, 4));
+    return Q("How many classes does this element have?", `<div id="${WORDS()}" class="${cls.join(" ")}"></div>`, cls.length, [cls.length + 1, 1 === cls.length ? 2 : 1, 0],
+      "Classes are separated by spaces. The id is not a class.", [cls.length + 2]);
+  },
+  () => {
+    const ph = WORDS(), val = WORDS();
+    return Q("What does this input show before the user types anything?", `<input type="text" placeholder="${ph}" name="${val}">`, ph, [val, "text", "Nothing"], "placeholder is the grey hint shown while the box is empty.");
+  },
+  () => {
+    const [ent, ch] = pick(ENTITIES);
+    return Q(`Which character does ${ent} display?`, "", ch, shuf(ENTITIES.filter((e) => e[0] !== ent)).slice(0, 3).map((e) => e[1]), `${ent} is the HTML entity for ${ch}.`);
+  },
+  () => Q("Which tag does NOT need a closing tag?", "", pick(SELF_CLOSING), shuf(NEEDS_CLOSE).slice(0, 3), "Void elements like img, br, input, hr, meta and link have no content, so they never close."),
+  () => {
+    const levels = shuf([1, 2, 3, 4, 5, 6]).slice(0, 4);
+    const big = Math.min(...levels);
+    return Q("Which of these headings is the biggest by default?", "", `<h${big}>`, levels.filter((x) => x !== big).map((x) => `<h${x}>`), "h1 is the biggest and h6 the smallest.");
+  },
+  () => {
+    const outer = pick(["section", "article", "main", "div"]), mid = pick(["ul", "nav", "form"]), inner = pick(["li", "a", "button", "input"]);
+    return Q(`What is the parent of the <${inner}>?`, `<${outer}>\n  <${mid}>\n    <${inner}>…</${inner}>\n  </${mid}>\n</${outer}>`, `<${mid}>`, [`<${outer}>`, `<${inner}>`, "<body>"],
+      `The parent is the element directly around it: <${mid}>.`);
+  },
+);
+
+const randHex = () => "#" + pick(HEX) + pick(HEX) + pick(HEX);
+const hexRgb = (h) => `rgb(${parseInt(h.slice(1, 3), 16)}, ${parseInt(h.slice(3, 5), 16)}, ${parseInt(h.slice(5, 7), 16)})`;
+CSSG.push(
+  () => {
+    const h = randHex();
+    return Q(`Which rgb() value is the same as ${h}?`, "", hexRgb(h), [hexRgb("#" + h.slice(5, 7) + h.slice(3, 5) + h.slice(1, 3)), hexRgb("#" + h.slice(3, 5) + h.slice(1, 3) + h.slice(5, 7)), `rgb(${h.slice(1, 3)}, ${h.slice(3, 5)}, ${h.slice(5, 7)})`],
+      "Each pair of hex digits is one channel, from 00 (0) to FF (255).");
+  },
+  () => {
+    const v = nums(4, 1, 6).map((x) => x * 5);
+    const n = pick([1, 2, 3, 4]), vals = v.slice(0, n);
+    const side = pick(["top", "right", "bottom", "left"]);
+    const full = n === 1 ? [v[0], v[0], v[0], v[0]] : n === 2 ? [v[0], v[1], v[0], v[1]] : n === 3 ? [v[0], v[1], v[2], v[1]] : v.slice(0, 4);
+    const ans = full[["top", "right", "bottom", "left"].indexOf(side)];
+    return Q(`How much ${side} padding does .box get?`, `.box { padding: ${vals.map((x) => x + "px").join(" ")}; }`, `${ans}px`,
+      [...new Set(v)].filter((x) => x !== ans).map((x) => `${x}px`).concat(["0px", `${ans + 5}px`]),
+      "Shorthand goes clockwise: top, right, bottom, left. Missing values copy the opposite side.");
+  },
+  () => {
+    const c = shuf(["red", "blue", "green", "purple", "orange", "teal"]).slice(0, 3);
+    const forms = [
+      [`#title { color: ${c[0]}; }\n.title { color: ${c[1]}; }\nh1 { color: ${c[2]}; }`, c[0], "An id selector beats a class, and a class beats a tag."],
+      [`.title { color: ${c[0]}; }\nh1 { color: ${c[1]}; }\n.title { color: ${c[2]}; }`, c[2], "Two rules with equal specificity: the later one wins."],
+      [`h1 { color: ${c[0]} !important; }\n#title { color: ${c[1]}; }\n.title { color: ${c[2]}; }`, c[0], "!important beats normal rules, even ones with an id."],
+      [`header h1 { color: ${c[0]}; }\nh1 { color: ${c[1]}; }\nh1 { color: ${c[2]}; }`, c[0], "Two tag names (header h1) are more specific than one."],
+    ];
+    const [code, ans, why] = pick(forms);
+    return Q(`What colour is <h1 id="title" class="title"> inside <header>?`, code, ans, c.filter((x) => x !== ans).concat(["black"]), why);
+  },
+  () => {
+    const W = pick([300, 400, 600, 800, 900, 1200]), f = shuf([1, 1, 2, 3]).slice(0, 3);
+    const total = f.reduce((a, b) => a + b, 0), i = ri(0, 2), w = (W * f[i]) / total;
+    if (!Number.isInteger(w)) return null;
+    return Q(`A ${W}px flex row holds three items with flex: ${f.join(", ")}. How wide is item ${i + 1}?`, "", `${w}px`, [`${W / 3}px`, `${(W * f[i]) / 10}px`, `${W - w}px`, `${w * 2}px`],
+      `Shares add up to ${total}, so item ${i + 1} gets ${f[i]}/${total} of ${W}px.`);
+  },
+  () => {
+    const W = pick([400, 500, 600, 800, 1000]), fixed = pick([100, 200]), a = ri(1, 2), b = ri(1, 3);
+    const free = W - fixed, w = (free * b) / (a + b);
+    if (!Number.isInteger(w)) return null;
+    return Q(`A ${W}px grid uses grid-template-columns: ${fixed}px ${a}fr ${b}fr. How wide is the last column?`, "", `${w}px`, [`${(W * b) / (a + b)}px`, `${b * 100}px`, `${free}px`],
+      `First take away the fixed ${fixed}px, then split the remaining ${free}px in the ratio ${a}:${b}.`);
+  },
+  () => {
+    const vw = pick([360, 768, 1024, 1200, 1440, 1600]), p = pick([10, 20, 25, 50, 75]);
+    return Q(`The browser window is ${vw}px wide. How wide is width: ${p}vw?`, "", `${(vw * p) / 100}px`, [`${p}px`, `${(vw * p) / 10}px`, `${vw - p}px`], `1vw is 1% of the window width.`);
+  },
+  () => {
+    const W = pick([300, 400, 500, 640, 800]), k = pick([20, 40, 50, 60, 100]);
+    return Q("How wide is .inner?", `.outer { width: ${W}px; }\n.inner { width: calc(100% - ${k}px); }`, `${W - k}px`, [`${W}px`, `${k}px`, `${W - 2 * k}px`], "calc() does the maths at render time: 100% of the parent minus the fixed amount.");
+  },
+  () => {
+    const z = shuf([1, 2, 5, 10, 50, 99]).slice(0, 3), names = ["A", "B", "C"];
+    const top = names[z.indexOf(Math.max(...z))];
+    return Q("Three positioned boxes overlap. Which one is on top?", names.map((n, i) => `#box${n} { position: absolute; z-index: ${z[i]}; }`).join("\n"), `Box ${top}`,
+      names.filter((n) => n !== top).map((n) => `Box ${n}`).concat(["They all blend together"]), "The highest z-index sits on top.");
+  },
+);
+
+const FNS = ["total", "double", "area", "greet", "score", "bonus", "average"];
+const PROPS = ["profile", "address", "settings", "stats", "avatar"];
+DEBUG.push(
+  () => {
+    const f = pick(FNS), a = ri(2, 9), b = ri(2, 9);
+    return Q(PRINT, `function ${f}(a, b) {\n  const r = a * b;\n}\nconsole.log(${f}(${a}, ${b}));`, "undefined", [a * b, a + b, "null"], "Without return, a function gives back undefined.");
+  },
+  () => {
+    const v = pick(["count", "level", "lives", "speed"]), a = ri(1, 5), b = a + ri(1, 5);
+    return Q(PRINT, `let ${v} = ${a};\nif (${v} = ${b}) {\n  console.log(${v});\n}`, b, [a, "false", "Nothing"], `= assigns ${b} (truthy), so the block runs and prints ${b}. Use === to compare.`);
+  },
+  () => {
+    const o = pick(PROPS), name = pick(["Ava", "Kai", "Leo", "Mia"]);
+    return Q("What happens when this runs?", `const user = { name: "${name}" };\nconsole.log(user.${o}.id);`, `TypeError: Cannot read properties of undefined (reading 'id')`,
+      ["It prints undefined", "It prints null", `It prints ${name}`], `user.${o} does not exist, so it is undefined, and you cannot read .id from undefined. Use user.${o}?.id.`);
+  },
+  () => {
+    const n = ri(2, 99), unit = pick(["px", "kg", "em", "%"]);
+    return R() < 0.5
+      ? Q(PRINT, `console.log(parseInt("${n}${unit}"))`, n, ["NaN", `${n}${unit}`, 0], "parseInt reads digits until it hits something else.")
+      : Q(PRINT, `console.log(Number("${n}${unit}"))`, "NaN", [n, `${n}${unit}`, 0], "Number() needs the whole string to be numeric, otherwise you get NaN.");
+  },
+  () => {
+    const a = nums(3, 2, 30);
+    if (new Set(a.map(String)).size < 3) return null;
+    const sorted = a.map(String).sort();
+    return Q(PRINT, `console.log([${a.join(", ")}].sort())`, "[" + sorted.join(",") + "]", ["[" + [...a].sort((x, y) => x - y).join(",") + "]", "[" + a.join(",") + "]", "[" + [...a].sort((x, y) => y - x).join(",") + "]"],
+      "sort() without a compare function sorts as text, so '10' comes before '9'. Use sort((a, b) => a - b).");
+  },
+  () => {
+    const w = WORDS(), c = pick(["X", "Z", "Q"]);
+    return Q(PRINT, `let word = "${w}";\nword[0] = "${c}";\nconsole.log(word);`, w, [c + w.slice(1), "Error", "undefined"], "Strings cannot be changed in place. Build a new one: \"" + c + "\" + word.slice(1).");
+  },
+  () => {
+    const a = nums(3, 1, 9), k = ri(3, 6);
+    return Q(PRINT, `const nums = [${a.join(", ")}];\nconsole.log(nums[${k}]);`, "undefined", [a[a.length - 1], "Error", 0], `There is no index ${k}, and JavaScript returns undefined instead of crashing.`);
+  },
+  () => {
+    const v = pick(["max", "limit", "rate", "tax"]), a = ri(1, 9);
+    return Q("What happens when this runs?", `const ${v} = ${a};\n${v} = ${a + 1};\nconsole.log(${v});`, "TypeError: Assignment to constant variable.", [`It prints ${a + 1}`, `It prints ${a}`, "It prints undefined"], "const cannot be reassigned. Use let if the value must change.");
+  },
+  () => {
+    const forms = [["console.log(0.1 + 0.2 === 0.3)", "false", ["true", "undefined", "Error"], "Floating-point maths is not exact: 0.1 + 0.2 is 0.30000000000000004."],
+      ['console.log("" == 0)', "true", ["false", "undefined", "Error"], "== converts the empty string to 0 first. === would be false."],
+      ["console.log(([] + []).length)", "0", ["2", "undefined", "Error"], "Both arrays turn into empty strings, so [] + [] is an empty string with length 0."],
+      ["console.log(typeof NaN)", "number", ["NaN", "undefined", "object"], "NaN is a special number value."],
+      ['console.log("b" + "a" + +"a" + "a")', "baNaNa", ["baaa", "ba0a", "Error"], '+"a" tries to turn "a" into a number and gets NaN.']];
+    const [code, ans, w, why] = pick(forms);
+    return Q(PRINT, code, ans, w, why);
+  },
+);
+
+LOGIC.push(
+  () => {
+    const a = ri(1, 9), b = ri(1, 9);
+    const forms = [[`!(${a} > ${b})`, !(a > b)], [`${a} !== ${b} && ${a} > 0`, a !== b && a > 0], [`(${a} > ${b}) || (${a} === ${b})`, a >= b], [`!(${a} < ${b} || ${a} === ${b})`, !(a <= b)]];
+    const [e, v] = pick(forms);
+    return Q(PRINT, `console.log(${e})`, String(v), [String(!v), "undefined", "Error"], "Work inside the brackets first, then apply ! to flip the result.");
+  },
+  () => {
+    const n = ri(10, 60), k = ri(2, 7);
+    let c = 0; for (let i = 1; i <= n; i++) if (i % k === 0) c++;
+    return Q(PRINT, `let count = 0;\nfor (let i = 1; i <= ${n}; i++) {\n  if (i % ${k} === 0) count++;\n}\nconsole.log(count);`, c, [c + 1, n % k, Math.ceil(n / k) === c ? c - 1 : Math.ceil(n / k)], `Multiples of ${k} up to ${n}: there are ${c}.`);
+  },
+  () => {
+    const x = ri(-5, 15);
+    const out = x % 15 === 0 ? "FizzBuzz" : x % 3 === 0 ? "Fizz" : x % 5 === 0 ? "Buzz" : String(x);
+    if (x <= 0) return null;
+    return Q(PRINT, `const n = ${x};\nif (n % 15 === 0) console.log("FizzBuzz");\nelse if (n % 3 === 0) console.log("Fizz");\nelse if (n % 5 === 0) console.log("Buzz");\nelse console.log(n);`,
+      out, ["Fizz", "Buzz", "FizzBuzz", String(x)].filter((o) => o !== out), "Classic FizzBuzz: check 15 first, then 3, then 5.");
+  },
+  () => {
+    const a = ri(10, 99), b = ri(2, 9);
+    return Q(PRINT, `let x = ${a};\nlet y = ${b};\n[x, y] = [y, x];\nconsole.log(x - y);`, b - a, [a - b, 0, a + b], "Destructuring swaps the two values in one step.");
+  },
+  () => {
+    const n = ri(100, 9999), digits = String(n).split("").map(Number), s = digits.reduce((a, b) => a + b, 0);
+    return Q(PRINT, `let n = ${n}, sum = 0;\nwhile (n > 0) {\n  sum += n % 10;\n  n = Math.floor(n / 10);\n}\nconsole.log(sum);`, s, [digits.length, s + 1, n % 10], "% 10 takes the last digit and / 10 removes it, so this adds up every digit.");
+  },
+);
+
+PHPG.push(
+  () => {
+    const a = nums(ri(3, 5), 1, 9);
+    const forms = [[`$a = [${a.join(", ")}];\nsort($a);\necho implode(",", $a);`, [...a].sort((x, y) => x - y).join(","), "sort() orders the array from smallest to largest."],
+      [`$a = [${a.join(", ")}];\nrsort($a);\necho $a[0];`, Math.max(...a), "rsort() sorts high to low, so index 0 is the biggest."],
+      [`$a = [${a.join(", ")}];\necho in_array(${a[1]}, $a) ? "yes" : "no";`, "yes", "in_array checks whether the value is in the array."],
+      [`$a = [${a.join(", ")}];\narray_push($a, ${a[0] + 10});\necho count($a);`, a.length + 1, "array_push adds an item to the end."],
+      [`$a = [${a.join(", ")}];\necho array_search(${a[a.length - 1]}, $a);`, a.indexOf(a[a.length - 1]), "array_search returns the key of the first match."]];
+    const [code, ans, why] = pick(forms);
+    return Q(PRINT, code, ans, [String(ans) === "yes" ? "no" : a.join(","), String(a.length), String(a[0])], why, ["1", "0"]);
+  },
+  () => {
+    const n = ri(2, 6), m = ri(2, 5);
+    return Q(PRINT, `$out = "";\n$i = 0;\nwhile ($i < ${n}) {\n    $out .= "${pick(["a", "x", "*", "#"])}";\n    $i++;\n}\necho strlen($out);`, n, [n - 1, n + 1, m * n], ".= appends to the string once per loop.");
+  },
+  () => {
+    const w = WORDS(), r = pick(["a", "e", "o", "i"]), to = pick(["*", "_", "0"]);
+    return Q(PRINT, `echo str_replace("${r}", "${to}", "${w}");`, w.split(r).join(to), [w, w.replace(r, to), to], "str_replace swaps every match, not just the first.");
+  },
+  () => {
+    const a = ri(10, 99), b = ri(10, 99);
+    return Q(PRINT, `echo max(${a}, ${b}) - min(${a}, ${b});`, Math.abs(a - b), [a - b === Math.abs(a - b) ? b - a : a - b, Math.max(a, b), a + b], "max and min pick the larger and smaller value.");
+  },
+);
+
 /* ---------- vocabulary (any track) ---------- */
-function vocab(tier) {
+const VOCAB_TRACKS = ["js", "web", "css", "logic", "debug", "interview"];
+const strHash = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+function vocab(tier, trk) {
   const bank = VOCAB[Math.min(tier, 2)];
-  const [w, def] = pick(bank);
+  const mine = bank.filter((r) => strHash(r[0]) % VOCAB_TRACKS.length === VOCAB_TRACKS.indexOf(trk));
+  if (!mine.length) return null;
+  const [w, def] = pick(mine);
   const others = shuf(bank.filter((r) => r[0] !== w)).slice(0, 3);
   return R() < 0.5
     ? Q(`What does "${w}" mean?`, "", def, others.map((r) => r[1]), `${w}: ${def}`)
     : Q(`Which word means: ${def.charAt(0).toLowerCase() + def.slice(1)}`, "", w, others.map((r) => r[0]), `${w}: ${def}`);
 }
 
-const GEN = { js: JS, web: WEB, logic: LOGIC, debug: DEBUG, python: PY, css: CSSG, sql: SQLG, php: PHPG };
+const GEN = { js: JS, web: WEB, logic: LOGIC, debug: DEBUG, python: PY, css: CSSG, sql: SQLG, php: PHPG, networking: NETG, interview: INTERVIEW };
+// Level names set the mood but never promise a topic, because every level mixes question types.
 const TITLES = {
-  js: ["Variable Vault", "Array Arcade", "Loop Lab", "String Theory", "Math Machine", "Type Check", "Map Quest", "Filter Frenzy", "Reduce Rush", "Closure Cove", "Async Avenue", "Spread Party"],
-  web: ["Tag Hunt", "Attribute Alley", "Form Factory", "List Lane", "Head Start", "Link Up", "Semantic Street", "Status Codes", "Input Island", "Access for All", "Page Builder", "Safe Surfing"],
-  css: ["Style Studio", "Box Model Bay", "Selector Showdown", "Colour Code", "Unit Converter", "Flex Factory", "Grid Garden", "Pseudo Party", "Rem Rally", "Layout Lane", "Specificity Peak", "Motion Lab"],
-  python: ["Hello Python", "Slice Shop", "List Lab", "Range Rover", "Dict Diner", "F-String Fun", "Type Detective", "Loop Lagoon", "Comprehension Cove", "Zip Line", "Sort Station", "Pythonic Peak"],
-  sql: ["First Query", "Count Down", "Order Up", "Max Out", "Sum It", "Distinct Docks", "Like a Pro", "Group Therapy", "Join Junction", "Null Island", "Key Keeper", "Query Quest"],
-  php: ["Echo Echo", "Dot Joiner", "String Shop", "Array Avenue", "Loop Lane", "Key Value Inn", "Quote Quest", "Divide Docks", "Default Den", "Foreach Forest", "Type Juggle", "Server Side"],
-  logic: ["True or False", "Binary Bridge", "Loop Counter", "Pattern Hunter", "Order of Ops", "Halving Hill", "Grade Gate", "Nested Nest", "Data Docks", "Big O Peak", "Search Party", "Brain Gym"],
-  debug: ["Bug Hunt", "Error Explorer", "Off by One", "Squash It", "Crash Course", "Fix the Flow", "Case Closed", "Silent Bugs", "Trace It", "Patch Party", "Race Track", "Leak Detective"],
+  js: ["Hello Console", "Brace Yourself", "Semicolon Sprint", "Callback Canyon", "Script Kiddie", "Runtime Rumble", "Node Nook", "Event Loop-de-Loop", "Curly Climb", "Promise Land", "Bundle Up", "JS Jedi"],
+  web: ["Page One", "Tag Team", "Markup Market", "Open and Close", "Angle Brackets", "Div Dive", "Element Hunt", "Browser Basics", "Doc Type", "Hyper Text", "Web Weaver", "Markup Master"],
+  css: ["First Style", "Paint Job", "Pixel Push", "Style Studio", "Cascade Creek", "Colour Splash", "Layout Lane", "Box Party", "Design Desk", "Stylesheet Summit", "Pixel Perfect", "CSS Wizard"],
+  python: ["Hello Python", "Snake Steps", "Indent Island", "Py Picnic", "Zen Garden", "Script Safari", "Pythonic Path", "Slither Sprint", "REPL Ranch", "Py Pro", "Charmer", "Python Peak"],
+  sql: ["First Query", "Table Talk", "Row Rally", "Column Club", "Query Quest", "Data Dig", "Result Set", "Table Turn", "Schema Street", "Query Craft", "Data Detective", "SQL Sage"],
+  php: ["Hello PHP", "Echo Echo", "Dollar Signs", "Server Side", "Script Stop", "Request Ride", "PHP Picnic", "Backend Bay", "Elephant Walk", "Dynamic Den", "Server Smith", "PHP Pro"],
+  logic: ["Brain Warm-Up", "Think Tank", "Puzzle Path", "True or False", "Mind Maze", "Logic Lane", "Clever Clogs", "Brain Gym", "Reason Road", "Puzzle Peak", "Sharp Mind", "Logic Legend"],
+  debug: ["Bug Hunt", "Squash It", "Crash Course", "Error Explorer", "Fix the Flow", "Case Closed", "Silent Bugs", "Trace It", "Patch Party", "Bug Bounty", "Clean Build", "Debug Detective"],
+  networking: ["Hello Network", "Packet Path", "Signal Boost", "Link Up", "Ping Pong", "Hop Along", "Data Highway", "Net Navigator", "Bandwidth Bay", "Route Runner", "Packet Pro", "Network Ninja"],
+  interview: ["Warm-Up Round", "Phone Screen", "Take-Home", "Pair Programming", "Whiteboard", "Coding Round", "Tech Deep-Dive", "Onsite", "Hiring Panel", "Bar Raiser", "Final Round", "Offer Letter"],
 };
-// Vocabulary questions show up less in the language tracks, which have plenty of their own.
-const VOCAB_CHANCE = { js: 0.25, web: 0.25, logic: 0.25, debug: 0.25, css: 0.15, python: 0.1, sql: 0.1, php: 0.1 };
+// Share of vocabulary questions per track. Language and networking tracks have plenty of their own.
+const VOCAB_CHANCE = { js: 1, web: 1, css: 1, logic: 1, debug: 1, interview: 1, python: 0, sql: 0, php: 0, networking: 0 };
 
-function makeQuestions(tier, trk, k, id) {
-  R = seeded(id * 2654435761);
-  const d = tier;
-  const gens = GEN[trk].map((g) => (typeof g === "function" ? { min: 0, f: g } : g)).filter((g) => g.min <= d);
-  const qs = [];
+/*
+  No-repeat decks. For each track we deal 150 questions per tier (50 levels x 3)
+  from all of the track's generators in turn, skipping anything already dealt
+  anywhere in the track. A generator that cannot produce anything new is retired,
+  so fact lists are used up evenly and the numeric ones fill the rest.
+*/
+const SLOTS = 150;
+const decks = {};
+const deckStats = {};
+function buildDeck(trk) {
   const seen = new Set();
-  let guard = 0;
-  while (qs.length < 3 && guard++ < 80) {
-    const q = R() < VOCAB_CHANCE[trk] ? vocab(tier) : pick(gens).f(d, k);
-    if (!q) continue;
-    const key = q[0] + q[1];
-    if (seen.has(key)) continue;
-    seen.add(key);
-    qs.push(q);
+  const tiers = [];
+  let unique = 0;
+  for (let tier = 0; tier < TIERS.length; tier++) {
+    R = seeded(strHash(`${trk}-deck-${tier}`));
+    const gens = GEN[trk].map((g) => (typeof g === "function" ? { min: 0, f: g } : g)).filter((g) => g.min <= tier).map((g) => () => g.f(tier, 0));
+    if (VOCAB_CHANCE[trk]) gens.push(() => vocab(tier, trk));
+    const dealt = [];
+    // Pass 1 caps each question type at a fair share so no type dominates;
+    // pass 2 lifts the cap only if the tier still has empty slots.
+    const used = gens.map(() => 0);
+    for (const cap of [Math.max(6, Math.ceil((SLOTS / gens.length) * 1.5)), Infinity]) {
+    const retired = new Set();
+    while (dealt.length < SLOTS && retired.size < gens.length) {
+      for (const gi of shuf(gens.map((_, i) => i))) {
+        if (retired.has(gi) || dealt.length >= SLOTS) continue;
+        if (used[gi] >= cap) { retired.add(gi); continue; }
+        let got = null;
+        for (let t = 0; t < 40 && !got; t++) {
+          const q = gens[gi]();
+          if (q && !seen.has(q[0] + "\u0001" + q[1])) got = q;
+        }
+        if (!got) { retired.add(gi); continue; }
+        seen.add(got[0] + "\u0001" + got[1]);
+        used[gi]++;
+        dealt.push(got);
+      }
+    }
+    }
+    unique += dealt.length;
+    // Only if a track truly runs dry: reuse this tier's own questions.
+    for (let i = 0; dealt.length < SLOTS; i++) dealt.push(dealt[i]);
+    tiers.push(dealt);
   }
   R = Math.random;
-  return qs;
+  deckStats[trk] = unique;
+  return tiers;
+}
+function questionsFor(trk, tier, n) {
+  if (!decks[trk]) decks[trk] = buildDeck(trk);
+  return decks[trk][tier].slice((n - 1) * 3, n * 3);
 }
 
 /*
   Level ids stay stable so saved stars never move:
-    1–800    the original four tracks (JavaScript, HTML, Logic, Debugging), 200 per tier
-    801–1600 the newer tracks (Python, CSS, SQL, PHP), 200 per tier
-  Inside each block the 4 tracks take turns, so the previous level in the
-  same track is always id - 4. Every track gets 50 levels per tier.
+    1–800     JavaScript, HTML, Logic, Debugging
+    801–1600  Python, CSS, SQL, PHP
+    1601–2000 Networking, Interview Prep
+  Inside each block the tracks take turns. Every level stores "prev", the id
+  of the level before it in the same track and tier.
 */
-const BLOCKS = [TRACK_ORDER, NEW_TRACKS];
+const BLOCKS = [TRACK_ORDER, NEW_TRACKS, ["networking", "interview"]];
 const LV = [];
+let nextId = 1;
 BLOCKS.forEach((tracks, b) => {
+  const perTier = 50 * tracks.length;
   for (let tier = 0; tier < TIERS.length; tier++) {
     const hand = b === 0 ? HAND_LV.filter((l) => l.tier === tier) : [];
-    for (let k = 0; k < PER_TIER; k++) {
-      const id = b * TIERS.length * PER_TIER + tier * PER_TIER + k + 1;
-      const trk = tracks[k % 4];
-      const n = Math.floor(k / 4) + 1; // level number inside its track
-      const h = k < 4 && hand.find((l) => l.trk === trk);
+    for (let k = 0; k < perTier; k++) {
+      const id = nextId++;
+      const trk = tracks[k % tracks.length];
+      const n = Math.floor(k / tracks.length) + 1; // level number inside its track
+      const prev = n > 1 ? id - tracks.length : 0;
+      const h = n === 1 && hand.find((l) => l.trk === trk);
       if (h) {
-        LV.push({ id, tier, trk, n, title: h.title, qs: h.qs });
+        LV.push({ id, tier, trk, n, prev, title: h.title, qs: h.qs });
         continue;
       }
       const pool = TITLES[trk];
       const round = n - 1;
       const title = pool[round % pool.length] + (round >= pool.length ? " " + (Math.floor(round / pool.length) + 1) : "");
-      let qs = null;
-      // Generated lazily the first time a level is opened.
-      LV.push({ id, tier, trk, n, title, get qs() { return qs || (qs = makeQuestions(tier, trk, k, id)); } });
+      LV.push({ id, tier, trk, n, prev, title, get qs() { return questionsFor(trk, tier, n); } });
     }
   }
 });
-const TRACK_SIZE = PER_TIER / 4; // 50 levels per track per tier
+const TRACK_SIZE = 50; // levels per track per tier
 
 /** Old saves used ids 1–16 (4 per tier). Map them onto the new ids. */
 function migrateLevelIds(lv) {
@@ -1022,4 +1668,4 @@ function migrateLevelIds(lv) {
   return outLv;
 }
 
-if (typeof module !== "undefined") module.exports = { LV, PER_TIER, TRACK_SIZE, makeQuestions, migrateLevelIds };
+if (typeof module !== "undefined") module.exports = { LV, PER_TIER, TRACK_SIZE, questionsFor, deckStats, migrateLevelIds };

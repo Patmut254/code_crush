@@ -13,7 +13,9 @@ sql:{n:"SQL",sub:"Talk to databases",img:"bear",icon:"database",fg:"#0E8FA8",bg:
 web:{n:"HTML",sub:"Build the page",img:"parrot",icon:"code",fg:"#E4572E",bg:"#FFE3D8"},
 css:{n:"CSS",sub:"Make it beautiful",img:"giraffe",icon:"palette",fg:"#2965F1",bg:"#DDE8FF"},
 logic:{n:"Logic",sub:"Think like a programmer",img:"eagle",icon:"puzzle",fg:"#7B4FD6",bg:"#ECE3FF"},
-debug:{n:"Debugging",sub:"Find it, fix it, ship it",img:"tiger",icon:"bug",fg:"#D6455B",bg:"#FFDCE1"}};
+debug:{n:"Debugging",sub:"Find it, fix it, ship it",img:"tiger",icon:"bug",fg:"#D6455B",bg:"#FFDCE1"},
+networking:{n:"Networking",sub:"How the internet talks",img:"fly",icon:"globe",fg:"#0F8B8D",bg:"#D4F2F0"},
+interview:{n:"Interview Prep",sub:"Ace the tech interview",img:"lion",icon:"briefcase",fg:"#C8141F",bg:"#FFE0DC"}};
 // question = [text, code, options, correctIndex, explanation]
 const HAND_LV=[
 [0,"js","Variables and values",[

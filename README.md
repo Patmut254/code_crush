@@ -18,9 +18,9 @@ Option B (blueprint): push the folder to GitHub and use New > Blueprint, which r
 Players have 5 lives. A wrong answer costs one. Lives come back one at a time, every 20 minutes (`REGEN` in `js/app.js`). At 0 lives lessons are blocked until one returns.
 
 ## Editing content
-- Levels and questions: 1,600 levels (4 tiers x 8 tracks x 50), 3 questions each.
+- Levels and questions: 2,000 levels (4 tiers x 10 tracks x 50), 3 questions each, 600 different questions per track with no repeats inside a track.
   - `js/data.js`: tiers, tracks (icon + colour) and the 16 hand-written levels
-  - `js/levels-gen.js`: question generators for JavaScript, Python, PHP, SQL, HTML, CSS, Logic and Debugging
+  - `js/levels-gen.js`: question generators for JavaScript, Python, PHP, SQL, HTML, CSS, Networking, Logic, Debugging and Interview Prep, dealt into no-repeat decks
   - `js/vocab.js`: tech words and definitions used in vocabulary questions
 - Unlocking: each track opens one level at a time; a tier opens after 25 passes in the tier before
 - Colours and 3D effects: `css/style.css`
